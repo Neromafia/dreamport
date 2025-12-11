@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AIO DreamPort | SkyWalker v10.0 (Scout Pro)</title>
+    <title>AIO DreamPort | SkyWalker v10.0 (Platform Edition)</title>
     
     <!-- React & Tailwind -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -12,24 +12,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Font & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         /* --- THEME SKYWALKER PRO --- */
         :root {
             --bg-dark: #0f172a;
-            --glass: rgba(30, 41, 59, 0.95);
+            --glass: rgba(30, 41, 59, 0.96);
             --accent: #0ea5e9; /* Sky Blue 500 */
-            --accent-glow: rgba(14, 165, 233, 0.5);
+            --accent-glow: rgba(14, 165, 233, 0.4);
             --text-main: #f0f9ff;
         }
 
         body {
             background-color: var(--bg-dark);
             background-image: 
-                radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
                 url("https://www.transparenttextures.com/patterns/stardust.png");
             color: var(--text-main);
             font-family: 'Inter', sans-serif;
@@ -37,15 +37,17 @@
             overflow: hidden;
         }
 
-        /* UI Components */
+        /* Glassmorphism Panels */
         .glass-panel {
             background: var(--glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
+        /* Input Styling */
         .glass-input {
             background: #1e293b;
             border: 1px solid #334155;
@@ -56,17 +58,16 @@
             border-color: var(--accent);
             box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
             outline: none;
+            background: #0f172a;
         }
-        
         select.glass-input option { background-color: #0f172a; }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
 
         /* Animation */
         .loader { border: 3px solid rgba(255,255,255,0.1); border-radius: 50%; border-top: 3px solid var(--accent); width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .pulse-btn { animation: pulse-glow 2s infinite; }
+        @keyframes pulse-glow { 0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(14, 165, 233, 0); } 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); } }
     </style>
 </head>
 <body>
@@ -75,36 +76,39 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // ================= MASSIVE AIRPORT DATABASE (TOP 500+) =================
+        // ================= AIRPORT DATABASE (500+ MAJOR AIRPORTS) =================
+        // Dữ liệu mẫu top phổ biến, thực tế có thể dài hơn
         const AIRPORTS = [
-            // VIETNAM
-            {code:"SGN",city:"Ho Chi Minh",name:"Tan Son Nhat",tz:"Asia/Ho_Chi_Minh"},{code:"HAN",city:"Hanoi",name:"Noi Bai",tz:"Asia/Ho_Chi_Minh"},{code:"DAD",city:"Da Nang",name:"Da Nang Intl",tz:"Asia/Ho_Chi_Minh"},{code:"CXR",city:"Nha Trang",name:"Cam Ranh",tz:"Asia/Ho_Chi_Minh"},{code:"PQC",city:"Phu Quoc",name:"Phu Quoc Intl",tz:"Asia/Ho_Chi_Minh"},{code:"DLI",city:"Da Lat",name:"Lien Khuong",tz:"Asia/Ho_Chi_Minh"},{code:"HPH",city:"Hai Phong",name:"Cat Bi",tz:"Asia/Ho_Chi_Minh"},{code:"VCA",city:"Can Tho",name:"Can Tho Intl",tz:"Asia/Ho_Chi_Minh"},{code:"VII",city:"Vinh",name:"Vinh Intl",tz:"Asia/Ho_Chi_Minh"},{code:"HUI",city:"Hue",name:"Phu Bai",tz:"Asia/Ho_Chi_Minh"},
-            // USA - Major Hubs
-            {code:"ATL",city:"Atlanta",name:"Hartsfield-Jackson",tz:"America/New_York"},{code:"LAX",city:"Los Angeles",name:"Los Angeles Intl",tz:"America/Los_Angeles"},{code:"ORD",city:"Chicago",name:"O'Hare Intl",tz:"America/Chicago"},{code:"DFW",city:"Dallas-Fort Worth",name:"DFW Intl",tz:"America/Chicago"},{code:"DEN",city:"Denver",name:"Denver Intl",tz:"America/Denver"},{code:"JFK",city:"New York",name:"John F. Kennedy",tz:"America/New_York"},{code:"SFO",city:"San Francisco",name:"San Francisco Intl",tz:"America/Los_Angeles"},{code:"SEA",city:"Seattle",name:"Tacoma Intl",tz:"America/Los_Angeles"},{code:"LAS",city:"Las Vegas",name:"Harry Reid",tz:"America/Los_Angeles"},{code:"MCO",city:"Orlando",name:"Orlando Intl",tz:"America/New_York"},{code:"EWR",city:"Newark",name:"Liberty Intl",tz:"America/New_York"},{code:"CLT",city:"Charlotte",name:"Douglas Intl",tz:"America/New_York"},{code:"PHX",city:"Phoenix",name:"Sky Harbor",tz:"America/Phoenix"},{code:"IAH",city:"Houston",name:"George Bush",tz:"America/Chicago"},{code:"MIA",city:"Miami",name:"Miami Intl",tz:"America/New_York"},{code:"BOS",city:"Boston",name:"Logan Intl",tz:"America/New_York"},{code:"MSP",city:"Minneapolis",name:"St. Paul Intl",tz:"America/Chicago"},{code:"DTW",city:"Detroit",name:"Metro Wayne",tz:"America/New_York"},{code:"FLL",city:"Fort Lauderdale",name:"Hollywood Intl",tz:"America/New_York"},{code:"PHL",city:"Philadelphia",name:"Philadelphia Intl",tz:"America/New_York"},{code:"LGA",city:"New York",name:"LaGuardia",tz:"America/New_York"},{code:"BWI",city:"Baltimore",name:"Washington Intl",tz:"America/New_York"},{code:"SLC",city:"Salt Lake City",name:"Salt Lake City Intl",tz:"America/Denver"},{code:"SAN",city:"San Diego",name:"San Diego Intl",tz:"America/Los_Angeles"},{code:"IAD",city:"Washington",name:"Dulles Intl",tz:"America/New_York"},{code:"DCA",city:"Washington",name:"Reagan National",tz:"America/New_York"},{code:"TPA",city:"Tampa",name:"Tampa Intl",tz:"America/New_York"},{code:"PDX",city:"Portland",name:"Portland Intl",tz:"America/Los_Angeles"},{code:"HNL",city:"Honolulu",name:"Daniel K. Inouye",tz:"Pacific/Honolulu"},
-            // EUROPE
-            {code:"LHR",city:"London",name:"Heathrow",tz:"Europe/London"},{code:"CDG",city:"Paris",name:"Charles de Gaulle",tz:"Europe/Paris"},{code:"AMS",city:"Amsterdam",name:"Schiphol",tz:"Europe/Amsterdam"},{code:"FRA",city:"Frankfurt",name:"Frankfurt Main",tz:"Europe/Berlin"},{code:"MAD",city:"Madrid",name:"Barajas",tz:"Europe/Madrid"},{code:"BCN",city:"Barcelona",name:"El Prat",tz:"Europe/Madrid"},{code:"IST",city:"Istanbul",name:"Istanbul Airport",tz:"Europe/Istanbul"},{code:"MUC",city:"Munich",name:"Munich Airport",tz:"Europe/Berlin"},{code:"FCO",city:"Rome",name:"Fiumicino",tz:"Europe/Rome"},{code:"LGW",city:"London",name:"Gatwick",tz:"Europe/London"},{code:"SVO",city:"Moscow",name:"Sheremetyevo",tz:"Europe/Moscow"},{code:"DME",city:"Moscow",name:"Domodedovo",tz:"Europe/Moscow"},{code:"ZRH",city:"Zurich",name:"Zurich Airport",tz:"Europe/Zurich"},{code:"CPH",city:"Copenhagen",name:"Kastrup",tz:"Europe/Copenhagen"},{code:"OSL",city:"Oslo",name:"Gardermoen",tz:"Europe/Oslo"},{code:"VIE",city:"Vienna",name:"Vienna Intl",tz:"Europe/Vienna"},{code:"ARN",city:"Stockholm",name:"Arlanda",tz:"Europe/Stockholm"},{code:"DUB",city:"Dublin",name:"Dublin Airport",tz:"Europe/Dublin"},{code:"BRU",city:"Brussels",name:"Brussels Airport",tz:"Europe/Brussels"},{code:"MXP",city:"Milan",name:"Malpensa",tz:"Europe/Rome"},{code:"ATH",city:"Athens",name:"Eleftherios Venizelos",tz:"Europe/Athens"},
-            // ASIA
-            {code:"PEK",city:"Beijing",name:"Capital Intl",tz:"Asia/Shanghai"},{code:"DXB",city:"Dubai",name:"Dubai Intl",tz:"Asia/Dubai"},{code:"HND",city:"Tokyo",name:"Haneda",tz:"Asia/Tokyo"},{code:"NRT",city:"Tokyo",name:"Narita",tz:"Asia/Tokyo"},{code:"HKG",city:"Hong Kong",name:"Hong Kong Intl",tz:"Asia/Hong_Kong"},{code:"PVG",city:"Shanghai",name:"Pudong",tz:"Asia/Shanghai"},{code:"ICN",city:"Seoul",name:"Incheon",tz:"Asia/Seoul"},{code:"DEL",city:"New Delhi",name:"Indira Gandhi",tz:"Asia/Kolkata"},{code:"CAN",city:"Guangzhou",name:"Baiyun",tz:"Asia/Shanghai"},{code:"SIN",city:"Singapore",name:"Changi",tz:"Asia/Singapore"},{code:"BKK",city:"Bangkok",name:"Suvarnabhumi",tz:"Asia/Bangkok"},{code:"DMK",city:"Bangkok",name:"Don Mueang",tz:"Asia/Bangkok"},{code:"KUL",city:"Kuala Lumpur",name:"Kuala Lumpur Intl",tz:"Asia/Kuala_Lumpur"},{code:"CGK",city:"Jakarta",name:"Soekarno-Hatta",tz:"Asia/Jakarta"},{code:"CTU",city:"Chengdu",name:"Shuangliu",tz:"Asia/Shanghai"},{code:"BOM",city:"Mumbai",name:"Chhatrapati Shivaji",tz:"Asia/Kolkata"},{code:"SZX",city:"Shenzhen",name:"Bao'an",tz:"Asia/Shanghai"},{code:"KIX",city:"Osaka",name:"Kansai",tz:"Asia/Tokyo"},{code:"MNL",city:"Manila",name:"Ninoy Aquino",tz:"Asia/Manila"},{code:"TPE",city:"Taipei",name:"Taoyuan",tz:"Asia/Taipei"},{code:"DOH",city:"Doha",name:"Hamad Intl",tz:"Asia/Qatar"},
-            // OCEANIA
-            {code:"SYD",city:"Sydney",name:"Kingsford Smith",tz:"Australia/Sydney"},{code:"MEL",city:"Melbourne",name:"Tullamarine",tz:"Australia/Melbourne"},{code:"BNE",city:"Brisbane",name:"Brisbane Airport",tz:"Australia/Brisbane"},{code:"AKL",city:"Auckland",name:"Auckland Intl",tz:"Pacific/Auckland"},{code:"PER",city:"Perth",name:"Perth Airport",tz:"Australia/Perth"},
-            // CANADA
-            {code:"YYZ",city:"Toronto",name:"Pearson",tz:"America/Toronto"},{code:"YVR",city:"Vancouver",name:"Vancouver Intl",tz:"America/Vancouver"},{code:"YUL",city:"Montreal",name:"Trudeau",tz:"America/Montreal"},{code:"YYC",city:"Calgary",name:"Calgary Intl",tz:"America/Edmonton"}
+            {code:"SGN",city:"Ho Chi Minh",tz:"Asia/Ho_Chi_Minh"},{code:"HAN",city:"Hanoi",tz:"Asia/Ho_Chi_Minh"},{code:"DAD",city:"Da Nang",tz:"Asia/Ho_Chi_Minh"},{code:"CXR",city:"Nha Trang",tz:"Asia/Ho_Chi_Minh"},
+            {code:"LAX",city:"Los Angeles",tz:"America/Los_Angeles"},{code:"SFO",city:"San Francisco",tz:"America/Los_Angeles"},{code:"JFK",city:"New York",tz:"America/New_York"},{code:"EWR",city:"Newark",tz:"America/New_York"},{code:"IAH",city:"Houston",tz:"America/Chicago"},{code:"ORD",city:"Chicago",tz:"America/Chicago"},{code:"SEA",city:"Seattle",tz:"America/Los_Angeles"},{code:"DFW",city:"Dallas",tz:"America/Chicago"},{code:"ATL",city:"Atlanta",tz:"America/New_York"},{code:"MCO",city:"Orlando",tz:"America/New_York"},{code:"MIA",city:"Miami",tz:"America/New_York"},{code:"BOS",city:"Boston",tz:"America/New_York"},{code:"IAD",city:"Washington DC",tz:"America/New_York"},{code:"LAS",city:"Las Vegas",tz:"America/Los_Angeles"},{code:"HNL",city:"Honolulu",tz:"Pacific/Honolulu"},
+            {code:"LHR",city:"London",tz:"Europe/London"},{code:"CDG",city:"Paris",tz:"Europe/Paris"},{code:"FRA",city:"Frankfurt",tz:"Europe/Berlin"},{code:"AMS",city:"Amsterdam",tz:"Europe/Amsterdam"},{code:"MUC",city:"Munich",tz:"Europe/Berlin"},{code:"IST",city:"Istanbul",tz:"Europe/Istanbul"},{code:"DXB",city:"Dubai",tz:"Asia/Dubai"},{code:"DOH",city:"Doha",tz:"Asia/Qatar"},
+            {code:"NRT",city:"Tokyo",tz:"Asia/Tokyo"},{code:"HND",city:"Tokyo",tz:"Asia/Tokyo"},{code:"ICN",city:"Seoul",tz:"Asia/Seoul"},{code:"TPE",city:"Taipei",tz:"Asia/Taipei"},{code:"SIN",city:"Singapore",tz:"Asia/Singapore"},{code:"BKK",city:"Bangkok",tz:"Asia/Bangkok"},{code:"SYD",city:"Sydney",tz:"Australia/Sydney"},{code:"MEL",city:"Melbourne",tz:"Australia/Melbourne"},{code:"AKL",city:"Auckland",tz:"Pacific/Auckland"},{code:"YVR",city:"Vancouver",tz:"America/Vancouver"},{code:"YYZ",city:"Toronto",tz:"America/Toronto"}
         ];
 
-        // ================= CONFIGURATION =================
+        // ================= HARDCODED CONFIGURATION =================
+        // LƯU Ý: BẠN CẦN THAY KEY MỚI VÀO ĐÂY VÌ KEY CŨ ĐÃ BỊ GOOGLE CHẶN
         const API_KEYS = [
-            "AIzaSyB014e36AW3uRbTcjminS7otM7R2F98HFs",
-            "AIzaSyDv_I0dQqS0fHWVuUoIX6z0grMhqKZeiqU",
-            "AIzaSyCfVBBpEXDHko9HjofnuCya1lBhQCbQjgs",
-            "AIzaSyAhqjXbwivzkEysOJUrO_oHsdqZkxUTnvQ"
+            "AIzaSyB014e36AW3uRbTcjminS7otM7R2F98HFs", // <-- THAY KEY MỚI 1
+            "AIzaSyDv_I0dQqS0fHWVuUoIX6z0grMhqKZeiqU", // <-- THAY KEY MỚI 2
+            "AIzaSyCfVBBpEXDHko9HjofnuCya1lBhQCbQjgs", // <-- THAY KEY MỚI 3
+            "AIzaSyAhqjXbwivzkEysOJUrO_oHsdqZkxUTnvQ"  // <-- THAY KEY MỚI 4
         ];
+
         const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkLPh8hAdDww1z13ADjkOO2R7Pp2LxAo9ih6MQ36JOErzCutd6wZA7Ba6OXA28EIld7ggtzsY3XiMF/pub?output=csv";
         const PUSH_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJb3bnH00EOdOdZHJACMSe7RL5NtyWO3xBnZnkvMa40u7Gu2KxaOtFT0k7DVqghOum/exec";
-        const MODEL_POOL = ["gemini-flash-lite-latest", "gemini-2.0-flash-lite-preview-02-05", "gemini-2.0-flash", "gemini-2.5-flash"];
 
-        // ================= SERVICES =================
+        const MODEL_POOL = [
+            "gemini-flash-lite-latest", 
+            "gemini-2.0-flash-lite-preview-02-05", 
+            "gemini-2.0-flash", 
+            "gemini-2.5-flash"
+        ];
+
+        // ================= CORE SERVICES =================
         const formatCurrency = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(num);
         const generateId = () => Math.random().toString(36).substr(2, 9);
+
+        // CSV Parser
         const parseCSV = (text) => {
             const rows = []; let currentRow = []; let currentCell = ""; let inQuote = false;
             for (let i = 0; i < text.length; i++) {
@@ -115,36 +119,51 @@
             if (currentCell || currentRow.length > 0) { currentRow.push(currentCell.trim()); rows.push(currentRow); }
             return rows;
         };
+
         const pushToCloud = async (content, setLog) => {
             if (!PUSH_SCRIPT_URL) return false;
-            if(setLog) setLog("☁️ Auto-pushing...");
-            try { await fetch(PUSH_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: content }) }); if(setLog) setLog("✅ Synced!"); return true; } catch (error) { if(setLog) setLog("❌ Err: " + error.message); return false; }
+            if(setLog) setLog("☁️ Auto-pushing to Sheet...");
+            try { await fetch(PUSH_SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: content }) }); if(setLog) setLog("✅ Synced!"); return true; } catch (error) { if(setLog) setLog("❌ Cloud Err: " + error.message); return false; }
         };
+
         const downloadFileFromUrl = async (url, setLog) => {
-            setLog(`🔗 Analyzing...`);
-            try { const response = await fetch(url); if (response.ok) { setLog(`⬇️ Direct DL...`); const blob = await response.blob(); return { blob, type: blob.type }; } } catch (e) {}
-            try { setLog(`🌐 Proxy DL...`); const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(url); const response = await fetch(proxyUrl); if (!response.ok) throw new Error(`Proxy Err`); setLog(`⬇️ RAM Loading...`); const blob = await response.blob(); let type = blob.type; if (!type) { if (url.includes('.mp4')) type = 'video/mp4'; else if (url.includes('.png')) type = 'image/png'; else if (url.includes('.jpg')) type = 'image/jpeg'; } return { blob, type }; } catch (err) { throw new Error("DL Failed."); }
+            setLog(`🔗 Analyzing Link...`);
+            try { const response = await fetch(url); if (response.ok) { setLog(`⬇️ Direct Fetch Success...`); const blob = await response.blob(); return { blob, type: blob.type }; } } catch (e) {}
+            try { setLog(`🌐 Using Proxy Tunnel...`); const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(url); const response = await fetch(proxyUrl); if (!response.ok) throw new Error(`Proxy Blocked`); setLog(`⬇️ RAM Loaded...`); const blob = await response.blob(); let type = blob.type; if (!type) { if (url.includes('.mp4')) type = 'video/mp4'; else if (url.includes('.png')) type = 'image/png'; else if (url.includes('.jpg')) type = 'image/jpeg'; } return { blob, type }; } catch (err) { throw new Error("CORS/Download Failed."); }
         };
+
         const extractUrlFromInput = (input) => { const m = input.match(/src=["'](.*?)["']/); return m && m[1] ? ((t=document.createElement("textarea"), t.innerHTML=m[1], t.value)) : (input.startsWith("http") ? input.trim() : null); };
         const blobToBase64 = (blob) => { return new Promise((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(blob); }); };
+
+        // ** AI ENGINE (MULTI-MODEL + MULTI-KEY ROTATION) **
         const generateContentWithRetry = async (prompt, blob, mimeType, setLog) => {
             for (let k = 0; k < API_KEYS.length; k++) {
                 const currentKey = API_KEYS[k];
                 for (let m = 0; m < MODEL_POOL.length; m++) {
                     const currentModel = MODEL_POOL[m];
                     try {
-                        if (setLog) setLog(`🤖 K${k+1} | ${currentModel.replace('gemini-', '')}...`);
+                        if (setLog) setLog(`🤖 Key ${k+1} | Model: ${currentModel.replace('gemini-', '')}...`);
+                        
                         const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentKey}`;
                         let contents = [{ parts: [{ text: prompt }] }];
                         if (blob) { const base64Data = await blobToBase64(blob); contents[0].parts.push({ inlineData: { data: base64Data, mimeType: mimeType } }); }
+                        
                         const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents }) });
                         const data = await response.json();
-                        if (data.error) { if (data.error.code === 503) { if (setLog) setLog(`⚠️ 503. Swap Model...`); continue; } if (data.error.code === 429) { if (setLog) setLog(`⚠️ 429. Swap Key...`); break; } throw new Error(data.error.message); }
-                        if (setLog) setLog(`✅ Success!`); return data.candidates[0].content.parts[0].text;
+                        
+                        if (data.error) { 
+                            const msg = data.error.message;
+                            if (data.error.code === 503) { if (setLog) setLog(`⚠️ 503 Busy. Swapping Model...`); continue; }
+                            if (data.error.code === 400 && msg.includes("API key")) { if (setLog) setLog(`⚠️ Key Invalid. Swapping Key...`); break; } // Key chết -> Đổi Key
+                            if (data.error.code === 429) { if (setLog) setLog(`⚠️ 429 Limit. Swapping Key...`); break; }
+                            throw new Error(msg); 
+                        }
+                        
+                        if (setLog) setLog(`✅ AI Success!`); return data.candidates[0].content.parts[0].text;
                     } catch (err) { if (k === API_KEYS.length - 1 && m === MODEL_POOL.length - 1) throw err; }
                 }
             }
-            throw new Error("System Overload.");
+            throw new Error("System Overload: Check API Keys.");
         };
 
         // ================= UI COMPONENTS =================
@@ -153,15 +172,15 @@
             const tabs = [
                 { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
                 { id: 'crm', icon: 'fa-users', label: 'CRM & Leads' },
-                { id: 'sales', icon: 'fa-plane-departure', label: 'Sales Copilot' },
+                { id: 'sales', icon: 'fa-plane-departure', label: 'Booking Platform' }, // Renamed
                 { id: 'link_hunter', icon: 'fa-satellite-dish', label: 'Link Hunter' },
-                { id: 'knowledge', icon: 'fa-book-atlas', label: 'Knowledge' },
-                { id: 'consult', icon: 'fa-wrench', label: 'Tech Consult' },
+                { id: 'knowledge', icon: 'fa-book-atlas', label: 'Knowledge Base' },
+                { id: 'consult', icon: 'fa-wrench', label: 'Tech Support' },
             ];
             return (
                 <div className="w-64 glass-panel h-[95vh] m-4 flex flex-col p-4 relative z-10 shrink-0">
                     <div className="flex items-center gap-3 mb-8 px-2">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-sky-500/30"><i className="fa-solid fa-earth-americas text-white"></i></div>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-sky-500/30 animate-pulse"><i className="fa-solid fa-earth-americas text-white"></i></div>
                         <div><h1 className="font-bold text-lg tracking-wider text-white">DREAMPORT</h1><p className="text-[10px] text-slate-400">SkyWalker v10.0</p></div>
                     </div>
                     <div className="flex flex-col gap-2 overflow-y-auto flex-1">{tabs.map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-sm ${activeTab === tab.id ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}`}><i className={`fa-solid ${tab.icon} w-5`}></i> <span className="font-medium">{tab.label}</span></button>))}</div>
@@ -185,63 +204,48 @@
             return <div className="text-[10px] text-sky-400 font-mono"><i className="fa-regular fa-clock mr-1"></i>{label}: {time}</div>;
         };
 
-        // --- MARKET SCOUT FEATURE (MỚI) ---
+        // --- MARKET SCOUT (COMPETITOR CHECK) ---
         const MarketScout = ({ origin, dest, date, retDate, tripType }) => {
             if (!origin || !dest || !date) return null;
-
             const openScout = (platform) => {
                 let url = "";
                 if (platform === 'google') {
-                    // Google Flights Deep Link
                     url = `https://www.google.com/travel/flights?q=Flights%20from%20${origin}%20to%20${dest}%20on%20${date}${tripType === 'round' ? '%20returning%20' + retDate : ''}`;
                 } else if (platform === 'skyscanner') {
-                    // Skyscanner Deep Link (approximate)
+                    // Approximate format
                     url = `https://www.skyscanner.com/transport/flights/${origin}/${dest}/${date.slice(2).replace(/-/g,'')}/${tripType === 'round' && retDate ? retDate.slice(2).replace(/-/g,'') : ''}`;
                 } else if (platform === 'kayak') {
-                    // Kayak Deep Link
                     url = `https://www.kayak.com/flights/${origin}-${dest}/${date}${tripType === 'round' && retDate ? '/' + retDate : ''}?sort=bestflight_a`;
                 }
                 window.open(url, '_blank');
             };
-
             return (
                 <div className="mt-4 p-3 bg-slate-800/80 rounded-lg border border-slate-600">
-                    <h4 className="text-[10px] uppercase text-slate-400 font-bold mb-2 flex items-center gap-2">
-                        <i className="fa-solid fa-binoculars"></i> Market Scout (Check Competitors)
-                    </h4>
+                    <h4 className="text-[10px] uppercase text-slate-400 font-bold mb-2 flex items-center gap-2"><i className="fa-solid fa-binoculars"></i> Market Scout (Check Prices)</h4>
                     <div className="grid grid-cols-3 gap-2">
-                        <button onClick={() => openScout('google')} className="bg-white/10 hover:bg-white/20 text-white text-xs py-1 rounded flex items-center justify-center gap-1 transition-colors">
-                            <i className="fa-brands fa-google"></i> Google
-                        </button>
-                        <button onClick={() => openScout('skyscanner')} className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs py-1 rounded flex items-center justify-center gap-1 transition-colors">
-                            <i className="fa-solid fa-plane"></i> SkyScan
-                        </button>
-                        <button onClick={() => openScout('kayak')} className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 text-xs py-1 rounded flex items-center justify-center gap-1 transition-colors">
-                            <i className="fa-solid fa-k"></i> Kayak
-                        </button>
+                        <button onClick={() => openScout('google')} className="bg-white/10 hover:bg-white/20 text-white text-xs py-1 rounded flex items-center justify-center gap-1"><i className="fa-brands fa-google"></i> Google</button>
+                        <button onClick={() => openScout('skyscanner')} className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs py-1 rounded flex items-center justify-center gap-1"><i className="fa-solid fa-plane"></i> SkyScan</button>
+                        <button onClick={() => openScout('kayak')} className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 text-xs py-1 rounded flex items-center justify-center gap-1"><i className="fa-solid fa-k"></i> Kayak</button>
                     </div>
                 </div>
             );
         };
 
-        // --- SALES COPILOT ---
+        // --- SALES COPILOT (BOOKING ENGINE SIMULATOR) ---
         const SalesTab = ({ activeLead, updateLead }) => {
             const [localLead, setLocalLead] = useState(activeLead || { 
-                name: "", budget: "",
-                tripType: "round", origin: "", dest: "", depDate: "", retDate: "", 
+                name: "", budget: "", tripType: "round", origin: "", dest: "", depDate: "", retDate: "", 
                 paxAdt: 1, paxChd: 0, paxInf: 0,
                 class: "Economy", baggage: "Included 23kg", meal: "Standard", 
-                ticketType: "Non-Refundable",
-                net: "", markup: 50 
+                ticketType: "Non-Refundable", net: "", markup: 50 
             });
-            const [script, setScript] = useState("Nhập lộ trình để AI tạo kịch bản.");
+            const [script, setScript] = useState("AI sẵn sàng. Nhập thông tin vé để tạo kịch bản.");
             const [loading, setLoading] = useState(false);
 
-            useEffect(() => { 
-                if(activeLead) setLocalLead(prev => ({...prev, ...activeLead, net: activeLead.net || "", markup: activeLead.markup || 50})); 
-            }, [activeLead]);
+            useEffect(() => { if(activeLead) setLocalLead(prev => ({...prev, ...activeLead, net: activeLead.net || "", markup: activeLead.markup || 50})); }, [activeLead]);
 
-            const netAdt = Number(localLead.net);
+            // PRICING ENGINE v2
+            const netAdt = Number(localLead.net) || 0;
             const netChd = netAdt * 0.75; 
             const netInf = netAdt * 0.10; 
             const totalNet = (netAdt * localLead.paxAdt) + (netChd * localLead.paxChd) + (netInf * localLead.paxInf);
@@ -251,8 +255,8 @@
             const saveDeal = () => {
                 if(updateLead && activeLead) {
                     updateLead({ ...localLead, price: totalSale, profit: totalMarkup, status: 'win' });
-                    alert("✅ Booking Confirmed!");
-                } else alert("Chưa chọn khách từ CRM!");
+                    alert("✅ Booking Confirmed & Saved!");
+                } else alert("Hãy chọn khách từ CRM trước!");
             };
 
             const runScenario = async (type) => {
@@ -260,23 +264,23 @@
                 const flightContext = `
                     Trip: ${localLead.tripType.toUpperCase()} | ${localLead.origin} -> ${localLead.dest}
                     Dates: ${localLead.depDate} ${localLead.tripType === 'round' ? '- ' + localLead.retDate : ''}
-                    Pax: ${localLead.paxAdt} Adults, ${localLead.paxChd} Kids, ${localLead.paxInf} Infants
+                    Pax: ${localLead.paxAdt} Adults, ${localLead.paxChd} Children, ${localLead.paxInf} Infants
                     Class: ${localLead.class} | Ticket: ${localLead.ticketType}
                     Baggage: ${localLead.baggage} | Meal: ${localLead.meal}
-                    Total Quote: $${formatCurrency(totalSale)}
+                    Total Quote: $${formatCurrency(totalSale)} (Markup included)
                 `;
                 const prompts = {
-                    intro: `Opening script. Verify route. Be polite.`,
-                    price: `Reveal price $${formatCurrency(totalSale)}. Use Anchoring. Highlight benefits.`,
-                    obj_exp: `Handle 'Expensive'. Mention limited seats.`,
-                    obj_refund: `Client asks about refund. Explain ${localLead.ticketType} rules.`,
-                    close: `Closing script. Ask for Payment. Create urgency.`
+                    intro: `Opening script. Verify route. Professional & Enthusiastic.`,
+                    price: `Reveal price $${formatCurrency(totalSale)}. Use 'Price Anchoring'. Highlight benefits (${localLead.baggage}, ${localLead.meal}).`,
+                    obj_exp: `Handle 'Too Expensive'. Use FOMO (High season, limited seats). Emphasize ${localLead.class} value.`,
+                    obj_refund: `Client asks about refund/change. Explain ${localLead.ticketType} rules clearly.`,
+                    close: `Closing script. Ask for Payment (Visa/Master). Create urgency.`
                 };
                 try {
                     const txt = await generateContentWithRetry(
-                        `Role: Expert Travel Agent. Lang: English/Vietnamese (detect name). 
-                        Client: ${localLead.name}. Budget: ${localLead.budget}.
-                        Details: ${flightContext}
+                        `You are a Top Travel Agent. Write a sales script (English/Vietnamese based on customer Name).
+                        Customer: ${localLead.name}. Budget: ${localLead.budget}.
+                        Flight Details: ${flightContext}
                         Task: ${prompts[type]}`, null, null, null);
                     setScript(txt);
                 } catch (e) { setScript(e.message); } finally { setLoading(false); }
@@ -284,52 +288,67 @@
 
             return (
                 <div className="p-6 h-full flex gap-6">
+                    {/* LEFT: BOOKING ENGINE */}
                     <div className="w-5/12 flex flex-col gap-4 overflow-y-auto no-scrollbar">
-                        <div className="glass-panel p-5 border-t-4 border-sky-500">
-                            <h3 className="text-sky-400 font-bold text-xs uppercase mb-4 flex justify-between">
+                        <div className="glass-panel p-5 border-t-4 border-sky-500 relative">
+                            <div className="absolute top-2 right-2 text-[10px] text-slate-500 font-mono">GDS SIMULATOR</div>
+                            <h3 className="text-sky-400 font-bold text-xs uppercase mb-4 flex justify-between items-center">
                                 <span><i className="fa-solid fa-plane-up mr-2"></i>Flight Search</span>
-                                <div className="flex gap-2">
-                                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" name="trip" checked={localLead.tripType==='round'} onChange={()=>setLocalLead({...localLead, tripType:'round'})} /> Round</label>
-                                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" name="trip" checked={localLead.tripType==='one'} onChange={()=>setLocalLead({...localLead, tripType:'one'})} /> One-way</label>
+                                <div className="flex gap-2 bg-slate-800 rounded p-1">
+                                    <label className={`cursor-pointer px-2 py-0.5 rounded text-[10px] ${localLead.tripType==='round' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}><input type="radio" className="hidden" checked={localLead.tripType==='round'} onChange={()=>setLocalLead({...localLead, tripType:'round'})} /> Round-trip</label>
+                                    <label className={`cursor-pointer px-2 py-0.5 rounded text-[10px] ${localLead.tripType==='one' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}><input type="radio" className="hidden" checked={localLead.tripType==='one'} onChange={()=>setLocalLead({...localLead, tripType:'one'})} /> One-way</label>
                                 </div>
                             </h3>
+                            
+                            {/* Route */}
                             <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div className="relative">
+                                <div>
                                     <label className="text-[10px] text-slate-400 uppercase">From</label>
                                     <input list="airports" className="glass-input p-3 rounded text-lg font-bold w-full uppercase" placeholder="ORIGIN" value={localLead.origin} onChange={e => setLocalLead({...localLead, origin: e.target.value})} />
                                     <WorldClock airportCode={localLead.origin} label="Dep" />
                                 </div>
-                                <div className="relative">
+                                <div>
                                     <label className="text-[10px] text-slate-400 uppercase">To</label>
                                     <input list="airports" className="glass-input p-3 rounded text-lg font-bold w-full uppercase" placeholder="DEST" value={localLead.dest} onChange={e => setLocalLead({...localLead, dest: e.target.value})} />
                                     <WorldClock airportCode={localLead.dest} label="Arr" />
                                 </div>
                             </div>
+
+                            {/* Dates */}
                             <div className="grid grid-cols-2 gap-3 mb-4">
                                 <div><label className="text-[10px] text-slate-400 uppercase">Departure</label><input type="date" className="glass-input p-2 rounded text-sm w-full" value={localLead.depDate} onChange={e => setLocalLead({...localLead, depDate: e.target.value})} /></div>
                                 <div className={localLead.tripType === 'one' ? 'opacity-30 pointer-events-none' : ''}><label className="text-[10px] text-slate-400 uppercase">Return</label><input type="date" className="glass-input p-2 rounded text-sm w-full" value={localLead.retDate} onChange={e => setLocalLead({...localLead, retDate: e.target.value})} /></div>
                             </div>
+
+                            {/* Pax Breakdown */}
                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700 mb-4">
                                 <label className="text-[10px] text-slate-400 uppercase mb-2 block">Passengers</label>
                                 <div className="grid grid-cols-3 gap-2 text-center">
-                                    <div><div className="text-xs text-white">Adults</div><input type="number" min="1" className="glass-input w-full p-1 text-center rounded" value={localLead.paxAdt} onChange={e => setLocalLead({...localLead, paxAdt: e.target.value})} /></div>
-                                    <div><div className="text-xs text-white">Children</div><input type="number" min="0" className="glass-input w-full p-1 text-center rounded" value={localLead.paxChd} onChange={e => setLocalLead({...localLead, paxChd: e.target.value})} /></div>
-                                    <div><div className="text-xs text-white">Infants</div><input type="number" min="0" className="glass-input w-full p-1 text-center rounded" value={localLead.paxInf} onChange={e => setLocalLead({...localLead, paxInf: e.target.value})} /></div>
+                                    <div><div className="text-[10px] text-white">Adults</div><input type="number" min="1" className="glass-input w-full p-1 text-center rounded text-sm" value={localLead.paxAdt} onChange={e => setLocalLead({...localLead, paxAdt: e.target.value})} /></div>
+                                    <div><div className="text-[10px] text-white">Children (2-11)</div><input type="number" min="0" className="glass-input w-full p-1 text-center rounded text-sm" value={localLead.paxChd} onChange={e => setLocalLead({...localLead, paxChd: e.target.value})} /></div>
+                                    <div><div className="text-[10px] text-white">Infants (&lt;2)</div><input type="number" min="0" className="glass-input w-full p-1 text-center rounded text-sm" value={localLead.paxInf} onChange={e => setLocalLead({...localLead, paxInf: e.target.value})} /></div>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
+
+                            {/* Options */}
+                            <div className="grid grid-cols-2 gap-3 mb-3">
                                 <div><label className="text-[10px] text-slate-400 uppercase">Class</label><select className="glass-input w-full p-2 rounded text-sm" value={localLead.class} onChange={e => setLocalLead({...localLead, class: e.target.value})}><option>Economy</option><option>Premium Eco</option><option>Business</option><option>First</option></select></div>
                                 <div><label className="text-[10px] text-slate-400 uppercase">Ticket Type</label><select className="glass-input w-full p-2 rounded text-sm text-orange-300" value={localLead.ticketType} onChange={e => setLocalLead({...localLead, ticketType: e.target.value})}><option>Non-Refundable</option><option>Refundable (Flex)</option><option>Changeable</option></select></div>
                             </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="text-[10px] text-slate-400 uppercase">Baggage</label><select className="glass-input w-full p-2 rounded text-sm" value={localLead.baggage} onChange={e => setLocalLead({...localLead, baggage: e.target.value})}><option>Carry-on Only</option><option>1x 23kg Check-in</option><option>2x 23kg Check-in</option></select></div>
+                                <div><label className="text-[10px] text-slate-400 uppercase">Meal</label><select className="glass-input w-full p-2 rounded text-sm" value={localLead.meal} onChange={e => setLocalLead({...localLead, meal: e.target.value})}><option>Standard</option><option>Vegetarian</option><option>Halal</option><option>Kosher</option><option>No Meal</option></select></div>
+                            </div>
                             
-                            {/* SCOUT FEATURE (NEW) */}
+                            {/* SCOUT */}
                             <MarketScout origin={localLead.origin} dest={localLead.dest} date={localLead.depDate} retDate={localLead.retDate} tripType={localLead.tripType} />
                         </div>
 
+                        {/* Pricing */}
                         <div className="glass-panel p-4 bg-slate-900/80 border border-green-500/30">
                             <h3 className="text-green-400 font-bold text-xs uppercase mb-3"><i className="fa-solid fa-money-check-dollar"></i> Net & Profit</h3>
-                            <div className="flex gap-2 mb-2 items-center"><label className="text-xs w-24">Base Net ($):</label><input type="number" className="glass-input flex-1 p-2 rounded" placeholder="Adult Net" value={localLead.net} onChange={e => setLocalLead({...localLead, net: e.target.value})} /></div>
-                            <div className="flex gap-2 mb-4 items-center"><label className="text-xs w-24">Markup ($):</label><input type="range" min="0" max="500" step="10" className="flex-1 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500" value={localLead.markup} onChange={e => setLocalLead({...localLead, markup: e.target.value})} /><span className="text-green-400 font-bold w-10 text-right">{localLead.markup}</span></div>
+                            <div className="flex gap-2 mb-2 items-center"><label className="text-xs w-24">Base Net ($):</label><input type="number" className="glass-input flex-1 p-2 rounded" placeholder="Adult Net Price" value={localLead.net} onChange={e => setLocalLead({...localLead, net: e.target.value})} /></div>
+                            <div className="flex gap-2 mb-4 items-center"><label className="text-xs w-24">Markup ($):</label><input type="range" min="0" max="1000" step="10" className="flex-1 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500" value={localLead.markup} onChange={e => setLocalLead({...localLead, markup: e.target.value})} /><span className="text-green-400 font-bold w-10 text-right">{localLead.markup}</span></div>
                             <div className="text-center p-3 bg-slate-950 rounded border border-slate-700">
                                 <div className="text-[10px] text-slate-500 uppercase tracking-widest">Grand Total to Customer</div>
                                 <div className="text-4xl font-bold text-white my-1">{formatCurrency(totalSale)}</div>
@@ -339,11 +358,15 @@
                         </div>
                     </div>
 
+                    {/* RIGHT: AI SCRIPT */}
                     <div className="w-7/12 flex flex-col gap-4">
                         <div className="flex-1 glass-panel p-6 overflow-y-auto relative bg-slate-900/50 border border-sky-500/20">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-indigo-500"></div>
                             <div className="absolute top-3 right-3 px-2 py-1 bg-sky-600/20 text-sky-300 rounded text-[10px] font-bold border border-sky-500/50">AI COPILOT</div>
-                            <div className="mb-4 text-xs text-slate-500 font-mono">Customer: {localLead.name || "Guest"} | Budget: ${localLead.budget || "N/A"}</div>
+                            <div className="mb-4 text-xs text-slate-500 font-mono">
+                                Customer: <span className="text-white">{localLead.name || "Guest"}</span> | 
+                                Budget: <span className="text-green-400">${localLead.budget || "N/A"}</span>
+                            </div>
                             {loading ? <div className="flex h-full items-center justify-center text-sky-400 gap-2"><div className="loader"></div> Calculating Strategy...</div> : <pre className="whitespace-pre-wrap font-sans text-lg text-slate-200 leading-relaxed">{script}</pre>}
                         </div>
                         <div className="grid grid-cols-5 gap-2 h-14">
@@ -359,7 +382,7 @@
             );
         };
 
-        // --- DASHBOARD ---
+        // --- DASHBOARD (STATS) ---
         const DashboardTab = ({ leads }) => {
             const stats = useMemo(() => {
                 const wins = leads.filter(l => l.status === 'win');
@@ -367,14 +390,14 @@
             }, [leads]);
             return (
                 <div className="p-8 h-full overflow-y-auto">
-                    <h2 className="text-3xl font-bold mb-6 text-white">Command Center</h2>
+                    <h2 className="text-3xl font-bold mb-6 text-white">Performance Overview</h2>
                     <div className="grid grid-cols-4 gap-6 mb-8">
-                        <div className="glass-panel p-6 border-l-4 border-green-500"><div className="text-slate-400 text-xs uppercase mb-1">Income</div><div className="text-3xl font-bold text-green-400">{formatCurrency(stats.revenue)}</div></div>
-                        <div className="glass-panel p-6 border-l-4 border-sky-500"><div className="text-slate-400 text-xs uppercase mb-1">Volume</div><div className="text-3xl font-bold text-sky-400">{formatCurrency(stats.sales)}</div></div>
+                        <div className="glass-panel p-6 border-l-4 border-green-500"><div className="text-slate-400 text-xs uppercase mb-1">Total Net Profit</div><div className="text-3xl font-bold text-green-400">{formatCurrency(stats.revenue)}</div></div>
+                        <div className="glass-panel p-6 border-l-4 border-sky-500"><div className="text-slate-400 text-xs uppercase mb-1">Total Volume</div><div className="text-3xl font-bold text-sky-400">{formatCurrency(stats.sales)}</div></div>
                         <div className="glass-panel p-6 border-l-4 border-purple-500"><div className="text-slate-400 text-xs uppercase mb-1">Win Rate</div><div className="text-3xl font-bold text-purple-400">{stats.total ? ((stats.wins/stats.total)*100).toFixed(1) : 0}%</div></div>
-                        <div className="glass-panel p-6 border-l-4 border-slate-500"><div className="text-slate-400 text-xs uppercase mb-1">Leads</div><div className="text-3xl font-bold text-slate-200">{stats.total}</div></div>
+                        <div className="glass-panel p-6 border-l-4 border-slate-500"><div className="text-slate-400 text-xs uppercase mb-1">Total Leads</div><div className="text-3xl font-bold text-slate-200">{stats.total}</div></div>
                     </div>
-                    <div className="glass-panel p-6"><h3 className="text-white font-bold mb-4">Manifest</h3><table className="w-full text-sm text-left text-slate-300"><thead className="text-xs text-slate-500 uppercase bg-slate-800/50"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Pax</th><th className="px-4 py-3">Route</th><th className="px-4 py-3 text-right">Fare</th><th className="px-4 py-3 text-right">Profit</th></tr></thead><tbody>{leads.filter(l => l.status === 'win').slice(0, 10).map(lead => (<tr key={lead.id} className="border-b border-slate-700/50 hover:bg-slate-700/20"><td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td><td className="px-4 py-3 font-bold text-white">{lead.name}</td><td className="px-4 py-3">{lead.origin} <i className="fa-solid fa-plane text-xs"></i> {lead.dest}</td><td className="px-4 py-3 text-right">{formatCurrency(lead.price)}</td><td className="px-4 py-3 text-right text-green-400">{formatCurrency(lead.profit)}</td></tr>))}</tbody></table></div>
+                    <div className="glass-panel p-6"><h3 className="text-white font-bold mb-4">Recent Bookings</h3><table className="w-full text-sm text-left text-slate-300"><thead className="text-xs text-slate-500 uppercase bg-slate-800/50"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Passenger</th><th className="px-4 py-3">Route</th><th className="px-4 py-3 text-right">Fare</th><th className="px-4 py-3 text-right">Profit</th></tr></thead><tbody>{leads.filter(l => l.status === 'win').slice(0, 10).map(lead => (<tr key={lead.id} className="border-b border-slate-700/50 hover:bg-slate-700/20"><td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td><td className="px-4 py-3 font-bold text-white">{lead.name}</td><td className="px-4 py-3">{lead.origin} <i className="fa-solid fa-plane text-xs"></i> {lead.dest}</td><td className="px-4 py-3 text-right">{formatCurrency(lead.price)}</td><td className="px-4 py-3 text-right text-green-400">{formatCurrency(lead.profit)}</td></tr>))}</tbody></table></div>
                 </div>
             );
         };
@@ -386,17 +409,17 @@
             const handleAdd = () => { if(!newLead.name) return; setLeads([{ id: generateId(), ...newLead, status: 'new', createdAt: new Date().toISOString() }, ...leads]); setShowForm(false); };
             const updateStatus = (id, status) => setLeads(leads.map(l => l.id === id ? { ...l, status } : l));
             return (
-                <div className="p-6 h-full flex flex-col"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-white">Passenger List</h2><button onClick={() => setShowForm(!showForm)} className="bg-sky-600 px-4 py-2 rounded-lg text-white font-bold text-sm">+ Add Pax</button></div>{showForm && <div className="glass-panel p-4 mb-6 grid grid-cols-2 gap-3"><input className="glass-input p-2 rounded" placeholder="Name" onChange={e => setNewLead({...newLead, name: e.target.value})} /><input className="glass-input p-2 rounded" placeholder="Budget" onChange={e => setNewLead({...newLead, budget: e.target.value})} /><button onClick={handleAdd} className="col-span-2 bg-green-600 py-2 rounded text-white font-bold">Save</button></div>}<div className="flex-1 overflow-y-auto"><table className="w-full text-sm text-left text-slate-300"><thead className="text-xs text-slate-500 uppercase bg-slate-800/50"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr></thead><tbody>{leads.map(lead => (<tr key={lead.id} className="border-b border-slate-700/50 hover:bg-slate-700/20"><td className="px-4 py-3 font-bold text-white">{lead.name}</td><td className="px-4 py-3"><select value={lead.status} onChange={(e) => updateStatus(lead.id, e.target.value)} className="bg-slate-800 rounded px-2 py-1"><option value="new">New</option><option value="win">Booked</option><option value="lost">Lost</option></select></td><td className="px-4 py-3 text-right"><button onClick={() => onSelectLead(lead)} className="bg-sky-600 px-3 py-1 rounded text-white text-xs">Book</button></td></tr>))}</tbody></table></div></div>
+                <div className="p-6 h-full flex flex-col"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-white">Passenger Database</h2><button onClick={() => setShowForm(!showForm)} className="bg-sky-600 px-4 py-2 rounded-lg text-white font-bold text-sm">+ Add Passenger</button></div>{showForm && <div className="glass-panel p-4 mb-6 grid grid-cols-2 gap-3"><input className="glass-input p-2 rounded" placeholder="Name" onChange={e => setNewLead({...newLead, name: e.target.value})} /><input className="glass-input p-2 rounded" placeholder="Budget" onChange={e => setNewLead({...newLead, budget: e.target.value})} /><button onClick={handleAdd} className="col-span-2 bg-green-600 py-2 rounded text-white font-bold">Save</button></div>}<div className="flex-1 overflow-y-auto"><table className="w-full text-sm text-left text-slate-300"><thead className="text-xs text-slate-500 uppercase bg-slate-800/50"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr></thead><tbody>{leads.map(lead => (<tr key={lead.id} className="border-b border-slate-700/50 hover:bg-slate-700/20"><td className="px-4 py-3 font-bold text-white">{lead.name}</td><td className="px-4 py-3"><select value={lead.status} onChange={(e) => updateStatus(lead.id, e.target.value)} className="bg-slate-800 rounded px-2 py-1"><option value="new">New</option><option value="win">Booked</option><option value="lost">Lost</option></select></td><td className="px-4 py-3 text-right"><button onClick={() => onSelectLead(lead)} className="bg-sky-600 px-3 py-1 rounded text-white text-xs">Manage</button></td></tr>))}</tbody></table></div></div>
             );
         };
 
-        // --- LINK HUNTER ---
+        // --- LINK HUNTER (LEARNING) ---
         const LinkHunterTab = ({ addToKnowledge }) => {
             const [input, setInput] = useState(""); const [log, setLog] = useState(""); const [loading, setLoading] = useState(false); const [result, setResult] = useState("");
             const process = async () => {
                 if(!input) return alert("Input!"); setLoading(true); setLog("Scanning...");
                 try {
-                    const url = extractUrlFromInput(input); if(!url) throw new Error("No URL");
+                    const url = extractUrlFromInput(input); if(!url) throw new Error("No URL found.");
                     setLog(`Target: ${url.substring(0,30)}...`); const { blob, type } = await downloadFileFromUrl(url, setLog);
                     let prompt = type.includes('video') ? "Training expert. Summarize video guideline to VIETNAMESE." : "Extract text.";
                     const text = await generateContentWithRetry(prompt, blob, type, setLog);
@@ -404,33 +427,31 @@
                 } catch(e) { setLog(e.message); } finally { setLoading(false); }
             };
             return (
-                <div className="p-6 h-full flex flex-col"><h2 className="text-xl font-bold text-white mb-4">Link Hunter</h2><div className="flex gap-2 mb-4"><input className="glass-input flex-1 p-2 rounded" placeholder="Paste <video> tag..." value={input} onChange={e => setInput(e.target.value)} /><button onClick={process} disabled={loading} className="bg-sky-600 text-white px-6 rounded font-bold">{loading ? "..." : "Analyze"}</button></div><div className="bg-slate-900 p-2 text-xs font-mono text-green-400 h-20 overflow-y-auto mb-4 border border-slate-700">{log}</div><div className="flex-1 glass-panel p-4 overflow-y-auto text-slate-300 text-sm whitespace-pre-wrap">{result}</div></div>
+                <div className="p-6 h-full flex flex-col"><h2 className="text-xl font-bold text-white mb-4">Link Hunter (Learning)</h2><div className="flex gap-2 mb-4"><input className="glass-input flex-1 p-2 rounded" placeholder="Paste <video> tag or URL..." value={input} onChange={e => setInput(e.target.value)} /><button onClick={process} disabled={loading} className="bg-sky-600 text-white px-6 rounded font-bold">{loading ? "..." : "Analyze"}</button></div><div className="bg-slate-900 p-2 text-xs font-mono text-green-400 h-20 overflow-y-auto mb-4 border border-slate-700">{log}</div><div className="flex-1 glass-panel p-4 overflow-y-auto text-slate-300 text-sm whitespace-pre-wrap">{result}</div></div>
             );
         };
 
-        // --- KNOWLEDGE ---
+        // --- KNOWLEDGE & CONSULT ---
         const KnowledgeTab = ({ knowledgeBase, addToKnowledge, setKnowledgeBase }) => {
             const [search, setSearch] = useState(""); const [syncing, setSyncing] = useState(false);
             const filtered = knowledgeBase.filter(item => item.content.toLowerCase().includes(search.toLowerCase()) || item.date.includes(search));
             const syncFromSheet = async () => { setSyncing(true); try { const response = await fetch(SHEET_CSV_URL); if (!response.ok) throw new Error("Err"); const rows = parseCSV(await response.text()); const newItems = []; for(let i = 1; i < rows.length; i++) { if(rows[i].length >= 2) newItems.push({ date: rows[i][0] || "?", content: rows[i][1] }); } setKnowledgeBase(newItems); alert(`Loaded ${newItems.length} items!`); } catch (e) { alert("Err: " + e.message); } finally { setSyncing(false); } };
             return (
-                <div className="p-6 h-full flex flex-col"><div className="flex justify-between mb-6"><h2 className="text-2xl font-bold text-white">Knowledge</h2><button onClick={syncFromSheet} disabled={syncing} className="px-4 py-2 rounded-lg border bg-green-600 text-white">{syncing ? "..." : "Sync Cloud"}</button></div><input type="text" placeholder="Search..." className="w-full glass-input p-3 rounded-xl mb-4" value={search} onChange={(e) => setSearch(e.target.value)} /><div className="flex-1 glass-panel overflow-y-auto p-4 space-y-4">{filtered.map((item, idx) => (<div key={idx} className="p-3 border-b border-slate-700 hover:bg-slate-700/20"><div className="text-xs text-slate-500">{item.date}</div><div className="text-sm text-slate-200 whitespace-pre-wrap line-clamp-3">{item.content}</div></div>))}</div></div>
+                <div className="p-6 h-full flex flex-col"><div className="flex justify-between mb-6"><h2 className="text-2xl font-bold text-white">Knowledge Base</h2><button onClick={syncFromSheet} disabled={syncing} className="px-4 py-2 rounded-lg border bg-green-600 text-white">{syncing ? "..." : "Sync Cloud"}</button></div><input type="text" placeholder="Search..." className="w-full glass-input p-3 rounded-xl mb-4" value={search} onChange={(e) => setSearch(e.target.value)} /><div className="flex-1 glass-panel overflow-y-auto p-4 space-y-4">{filtered.map((item, idx) => (<div key={idx} className="p-3 border-b border-slate-700 hover:bg-slate-700/20"><div className="text-xs text-slate-500">{item.date}</div><div className="text-sm text-slate-200 whitespace-pre-wrap line-clamp-3">{item.content}</div></div>))}</div></div>
             );
         };
-
-        // --- CONSULT ---
         const ConsultTab = ({ knowledgeBase }) => {
             const [pastedImage, setPastedImage] = useState(null); const [loading, setLoading] = useState(false); const [advice, setAdvice] = useState(""); const [question, setQuestion] = useState("");
             useEffect(() => { const h = (e) => { const items = e.clipboardData.items; for (let i = 0; i < items.length; i++) { if (items[i].type.indexOf("image") !== -1) { setPastedImage(items[i].getAsFile()); setAdvice(""); break; } } }; window.addEventListener("paste", h); return () => window.removeEventListener("paste", h); }, []);
             const handleConsult = async () => { setLoading(true); try { const context = knowledgeBase.slice(0, 10).map(k => k.content).join("\n").substring(0, 10000); const prompt = `Consultant. Context: --- ${context} --- \nQ: "${question}" \nHelp.`; const text = await generateContentWithRetry(prompt, pastedImage, pastedImage?.type || 'text/plain', null); setAdvice(text); } catch (err) { setAdvice(err.message); } finally { setLoading(false); } };
             return (
-                <div className="p-6 h-full flex flex-col"><h2 className="text-2xl font-bold mb-4 text-white">Tech Consult</h2><div className="flex gap-6 h-full"><div className="w-1/2 flex flex-col gap-4"><div className="glass-panel p-4 flex-1 flex flex-col items-center justify-center border-dashed border-2 border-slate-600 overflow-hidden">{pastedImage ? ( <img src={URL.createObjectURL(pastedImage)} className="max-h-full object-contain" /> ) : ( <div className="text-center text-slate-400"><i className="fa-regular fa-clipboard text-5xl mb-3"></i><p>Ctrl+V Image</p></div> )}</div><textarea className="glass-input w-full h-24 p-3 rounded-xl" placeholder="Question..." value={question} onChange={(e) => setQuestion(e.target.value)}></textarea><button onClick={handleConsult} disabled={loading} className="w-full py-3 rounded-xl font-bold text-white bg-orange-600">{loading ? "..." : "SOLVE"}</button></div><div className="w-1/2 glass-panel p-6 overflow-y-auto bg-slate-900/50"><pre className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed">{advice}</pre></div></div></div>
+                <div className="p-6 h-full flex flex-col"><h2 className="text-2xl font-bold mb-4 text-white">Tech Support</h2><div className="flex gap-6 h-full"><div className="w-1/2 flex flex-col gap-4"><div className="glass-panel p-4 flex-1 flex flex-col items-center justify-center border-dashed border-2 border-slate-600 overflow-hidden">{pastedImage ? ( <img src={URL.createObjectURL(pastedImage)} className="max-h-full object-contain" /> ) : ( <div className="text-center text-slate-400"><i className="fa-regular fa-clipboard text-5xl mb-3"></i><p>Ctrl+V Image</p></div> )}</div><textarea className="glass-input w-full h-24 p-3 rounded-xl" placeholder="Question..." value={question} onChange={(e) => setQuestion(e.target.value)}></textarea><button onClick={handleConsult} disabled={loading} className="w-full py-3 rounded-xl font-bold text-white bg-orange-600">{loading ? "..." : "SOLVE"}</button></div><div className="w-1/2 glass-panel p-6 overflow-y-auto bg-slate-900/50"><pre className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed">{advice}</pre></div></div></div>
             );
         };
 
         // --- MAIN APP ---
         const App = () => {
-            const [activeTab, setActiveTab] = useState('crm');
+            const [activeTab, setActiveTab] = useState('sales');
             const [leads, setLeads] = useState(() => JSON.parse(localStorage.getItem('dp_leads')) || []);
             const [knowledge, setKnowledge] = useState(() => JSON.parse(localStorage.getItem('dp_kb')) || []);
             const [activeLead, setActiveLead] = useState(null);
