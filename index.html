@@ -117,7 +117,7 @@
         const generateId = () => Math.random().toString(36).substr(2, 9);
         const formatCurrency = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(num);
 
-        // 2. CSV PARSER (Cho Google Sheet Read)
+        // 2. CSV PARSER & CLOUD PUSH
         const parseCSV = (text) => {
             const rows = []; let currentRow = []; let currentCell = ""; let inQuote = false;
             for (let i = 0; i < text.length; i++) {
@@ -129,7 +129,6 @@
             return rows;
         };
 
-        // 3. CLOUD PUSH SERVICE
         const pushToCloud = async (scriptUrl, content, setLog) => {
             if (!scriptUrl) return false;
             if(setLog) setLog("☁️ Push Cloud...");
@@ -139,7 +138,7 @@
             } catch (error) { if(setLog) setLog("❌ Error: " + error.message); return false; }
         };
 
-        // 4. DOWNLOADER & GEMINI CORE
+        // 3. DOWNLOADER & GEMINI CORE
         const extractUrlFromInput = (input) => {
             const srcMatch = input.match(/src=["'](.*?)["']/);
             if (srcMatch && srcMatch[1]) { const txt = document.createElement("textarea"); txt.innerHTML = srcMatch[1]; return txt.value; }
@@ -178,11 +177,11 @@
                             const msg = data.error.message;
                             if (code === 503) {
                                 if (setLog) setLog(`⚠️ 503 Busy. Switching Model...`);
-                                continue; // Try next model
+                                continue; 
                             }
                             if (code === 429 || msg.includes("RESOURCE_EXHAUSTED")) {
                                 if (setLog) setLog(`⚠️ 429 Quota. Switching Key...`);
-                                break; // Break model loop, go to next key
+                                break; 
                             }
                             throw new Error(msg); 
                         }
@@ -191,7 +190,6 @@
                         return data.candidates[0].content.parts[0].text;
 
                     } catch (err) {
-                        // If it's the absolute last try
                         if (k === availableKeys.length - 1 && m === MODEL_POOL.length - 1) throw err;
                     }
                 }
@@ -220,7 +218,7 @@
                         </div>
                         <div>
                             <h1 className="font-bold text-lg tracking-wider text-white">DREAMPORT</h1>
-                            <p className="text-[10px] text-slate-400">Titanium v6.0</p>
+                            <p className="text-[10px] text-slate-400">Nero Mafia</p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 overflow-y-auto flex-1">
@@ -248,7 +246,6 @@
             return (
                 <div className="p-8 h-full overflow-y-auto">
                     <h2 className="text-3xl font-bold mb-6 text-white">Income & Performance</h2>
-                    
                     <div className="grid grid-cols-4 gap-6 mb-8">
                         <div className="glass-panel p-6 border-l-4 border-green-500">
                             <div className="text-slate-400 text-xs uppercase mb-1">Total Net Profit (Income)</div>
@@ -267,9 +264,8 @@
                             <div className="text-3xl font-bold text-slate-200">{stats.total - stats.wins - stats.lost}</div>
                         </div>
                     </div>
-
                     <div className="glass-panel p-6">
-                        <h3 className="text-white font-bold mb-4">Recent Wins (Chốt Sale Thành Công)</h3>
+                        <h3 className="text-white font-bold mb-4">Recent Wins</h3>
                         <table className="w-full text-sm text-left text-slate-300">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-800/50">
                                 <tr>
@@ -304,46 +300,33 @@
 
             const handleAdd = () => {
                 if(!newLead.name) return alert("Nhập tên khách!");
-                const lead = {
-                    id: generateId(),
-                    ...newLead,
-                    status: 'new',
-                    createdAt: new Date().toISOString(),
-                    price: 0,
-                    profit: 0
-                };
+                const lead = { id: generateId(), ...newLead, status: 'new', createdAt: new Date().toISOString(), price: 0, profit: 0 };
                 setLeads([lead, ...leads]);
                 setNewLead({ name: "", dest: "", dates: "", budget: "", pax: 1, notes: "" });
                 setShowForm(false);
             };
 
-            const updateStatus = (id, status) => {
-                setLeads(leads.map(l => l.id === id ? { ...l, status } : l));
-            };
+            const updateStatus = (id, status) => { setLeads(leads.map(l => l.id === id ? { ...l, status } : l)); };
 
             return (
                 <div className="p-6 h-full flex flex-col">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-white">Customer Database</h2>
-                        <button onClick={() => setShowForm(!showForm)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                            <i className="fa-solid fa-plus"></i> Add Lead
-                        </button>
+                        <button onClick={() => setShowForm(!showForm)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center gap-2"><i className="fa-solid fa-plus"></i> Add Lead</button>
                     </div>
-
                     {showForm && (
                         <div className="glass-panel p-4 mb-6 grid grid-cols-2 gap-4 animate-pulse-slow border border-indigo-500/50">
-                            <input className="glass-input p-2 rounded" placeholder="Name (e.g. John Doe)" value={newLead.name} onChange={e => setNewLead({...newLead, name: e.target.value})} />
-                            <input className="glass-input p-2 rounded" placeholder="Destination (e.g. LAX)" value={newLead.dest} onChange={e => setNewLead({...newLead, dest: e.target.value})} />
-                            <input className="glass-input p-2 rounded" placeholder="Dates (e.g. 12/10 - 20/10)" value={newLead.dates} onChange={e => setNewLead({...newLead, dates: e.target.value})} />
+                            <input className="glass-input p-2 rounded" placeholder="Name" value={newLead.name} onChange={e => setNewLead({...newLead, name: e.target.value})} />
+                            <input className="glass-input p-2 rounded" placeholder="Destination" value={newLead.dest} onChange={e => setNewLead({...newLead, dest: e.target.value})} />
+                            <input className="glass-input p-2 rounded" placeholder="Dates" value={newLead.dates} onChange={e => setNewLead({...newLead, dates: e.target.value})} />
                             <div className="flex gap-2">
                                 <input type="number" className="glass-input p-2 rounded flex-1" placeholder="Budget ($)" value={newLead.budget} onChange={e => setNewLead({...newLead, budget: e.target.value})} />
                                 <input type="number" className="glass-input p-2 rounded w-20" placeholder="Pax" value={newLead.pax} onChange={e => setNewLead({...newLead, pax: e.target.value})} />
                             </div>
-                            <input className="glass-input p-2 rounded col-span-2" placeholder="Notes (Preferences...)" value={newLead.notes} onChange={e => setNewLead({...newLead, notes: e.target.value})} />
+                            <input className="glass-input p-2 rounded col-span-2" placeholder="Notes" value={newLead.notes} onChange={e => setNewLead({...newLead, notes: e.target.value})} />
                             <button onClick={handleAdd} className="col-span-2 bg-green-600 text-white py-2 rounded font-bold">Save Customer</button>
                         </div>
                     )}
-
                     <div className="flex-1 overflow-y-auto">
                         <table className="w-full text-sm text-left text-slate-300">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-800/50 sticky top-0">
@@ -359,34 +342,14 @@
                                 {leads.map(lead => (
                                     <tr key={lead.id} className="border-b border-slate-700/50 hover:bg-slate-700/20 group">
                                         <td className="px-4 py-3 font-medium text-white">{lead.name}</td>
+                                        <td className="px-4 py-3"><div className="text-white">{lead.dest}</div><div className="text-xs text-slate-500">{lead.dates}</div></td>
+                                        <td className="px-4 py-3"><div className="text-green-400">${lead.budget}</div><div className="text-xs text-slate-500">{lead.pax} pax</div></td>
                                         <td className="px-4 py-3">
-                                            <div className="text-white">{lead.dest}</div>
-                                            <div className="text-xs text-slate-500">{lead.dates}</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="text-green-400">${lead.budget}</div>
-                                            <div className="text-xs text-slate-500">{lead.pax} pax</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <select 
-                                                value={lead.status} 
-                                                onChange={(e) => updateStatus(lead.id, e.target.value)}
-                                                className={`bg-slate-800 text-xs rounded px-2 py-1 border border-slate-600 outline-none
-                                                    ${lead.status === 'new' ? 'text-blue-400' : 
-                                                      lead.status === 'win' ? 'text-green-400 font-bold' : 
-                                                      lead.status === 'lost' ? 'text-red-400' : 'text-yellow-400'}`}
-                                            >
-                                                <option value="new">New</option>
-                                                <option value="contacted">Contacted</option>
-                                                <option value="win">Win (Sold)</option>
-                                                <option value="lost">Lost</option>
+                                            <select value={lead.status} onChange={(e) => updateStatus(lead.id, e.target.value)} className={`bg-slate-800 text-xs rounded px-2 py-1 border border-slate-600 outline-none ${lead.status === 'new' ? 'text-blue-400' : lead.status === 'win' ? 'text-green-400 font-bold' : lead.status === 'lost' ? 'text-red-400' : 'text-yellow-400'}`}>
+                                                <option value="new">New</option><option value="contacted">Contacted</option><option value="win">Win (Sold)</option><option value="lost">Lost</option>
                                             </select>
                                         </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <button onClick={() => onSelectLead(lead)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-xs">
-                                                <i className="fa-solid fa-headset mr-1"></i> Call
-                                            </button>
-                                        </td>
+                                        <td className="px-4 py-3 text-right"><button onClick={() => onSelectLead(lead)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-xs"><i className="fa-solid fa-headset mr-1"></i> Call</button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -404,7 +367,6 @@
 
             useEffect(() => { if(activeLead) setLocalLead({...activeLead, net: activeLead.net || "", markup: activeLead.markup || 50}); }, [activeLead]);
 
-            // Calc
             const totalPerPax = Number(localLead.net) + Number(localLead.markup);
             const totalAll = totalPerPax * Number(localLead.pax);
             
@@ -426,16 +388,13 @@
                     close: `Ask for Credit Card. Create urgency.`
                 };
                 try {
-                    const txt = await generateContentWithRetry(apiKeys, 
-                        `Sales Script (English/Vietnamese based on name). Client: ${localLead.name}, Dest: ${localLead.dest}. Task: ${prompts[type]}`, 
-                        null, null, null);
+                    const txt = await generateContentWithRetry(apiKeys, `Sales Script (English/Vietnamese). Client: ${localLead.name}, Dest: ${localLead.dest}. Task: ${prompts[type]}`, null, null, null);
                     setScript(txt);
                 } catch (e) { setScript(e.message); } finally { setLoading(false); }
             };
 
             return (
                 <div className="p-6 h-full flex gap-6">
-                    {/* Left Panel */}
                     <div className="w-1/3 flex flex-col gap-4 overflow-y-auto no-scrollbar">
                         <div className="glass-panel p-4">
                             <h3 className="text-indigo-400 font-bold text-sm mb-3">Customer Info</h3>
@@ -448,8 +407,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        {/* Add-ons */}
                         <div className="glass-panel p-4">
                             <h3 className="text-slate-400 font-bold text-xs mb-2">ADD-ONS</h3>
                             <div className="text-xs text-slate-300 mb-2">
@@ -457,30 +414,20 @@
                                 🇺🇸 NY: {new Date().toLocaleTimeString('en-US', {timeZone:'America/New_York', hour:'2-digit', minute:'2-digit'})}<br/>
                                 🇺🇸 LA: {new Date().toLocaleTimeString('en-US', {timeZone:'America/Los_Angeles', hour:'2-digit', minute:'2-digit'})}
                             </div>
-                            <div className="text-[10px] text-slate-500 grid grid-cols-4 gap-1">
-                                <span>A-Alpha</span><span>B-Bravo</span><span>C-Charlie</span><span>D-Delta</span>
-                                <span>E-Echo</span><span>F-Foxtrot</span><span>G-Golf</span><span>H-Hotel</span>
-                            </div>
+                            <div className="text-[10px] text-slate-500 grid grid-cols-4 gap-1"><span>A-Alpha</span><span>B-Bravo</span><span>C-Charlie</span><span>D-Delta</span><span>E-Echo</span><span>F-Foxtrot</span><span>G-Golf</span><span>H-Hotel</span></div>
                         </div>
-
                         <div className="glass-panel p-4 bg-slate-800/80 border border-green-500/30">
                             <h3 className="text-green-400 font-bold text-sm mb-3">Pricing Engine</h3>
-                            <div className="flex gap-2 mb-2">
-                                <input type="number" className="glass-input w-full p-2 rounded" placeholder="Net Price" value={localLead.net} onChange={e => setLocalLead({...localLead, net: e.target.value})} />
-                            </div>
+                            <div className="flex gap-2 mb-2"><input type="number" className="glass-input w-full p-2 rounded" placeholder="Net Price" value={localLead.net} onChange={e => setLocalLead({...localLead, net: e.target.value})} /></div>
                             <div className="text-xs text-slate-400 mb-1">Markup: <span className="text-green-400">${localLead.markup}</span></div>
                             <input type="range" min="0" max="500" step="10" className="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500 mb-4" value={localLead.markup} onChange={e => setLocalLead({...localLead, markup: e.target.value})} />
                             <div className="text-center">
                                 <div className="text-xs text-slate-500">TOTAL QUOTE</div>
                                 <div className="text-3xl font-bold text-white">${formatCurrency(totalAll).replace('$','')}</div>
-                                <button onClick={saveDeal} className="mt-2 w-full bg-green-600 hover:bg-green-500 text-white py-1 rounded text-xs font-bold">
-                                    <i className="fa-solid fa-check"></i> CHỐT ĐƠN (WIN)
-                                </button>
+                                <button onClick={saveDeal} className="mt-2 w-full bg-green-600 hover:bg-green-500 text-white py-1 rounded text-xs font-bold"><i className="fa-solid fa-check"></i> CHỐT ĐƠN (WIN)</button>
                             </div>
                         </div>
                     </div>
-
-                    {/* Right Panel */}
                     <div className="w-2/3 flex flex-col gap-4">
                         <div className="flex-1 glass-panel p-6 overflow-y-auto relative bg-slate-900/50">
                             {loading ? <div className="flex h-full items-center justify-center text-indigo-400 gap-2"><div className="loader"></div> AI Thinking...</div> : <pre className="whitespace-pre-wrap font-sans text-lg text-slate-200">{script}</pre>}
@@ -497,8 +444,8 @@
             );
         };
 
-        // --- LINK HUNTER TAB (GIỮ NGUYÊN CORE) ---
-        const LinkHunterTab = ({ apiKeys, addToKnowledge }) => {
+        // --- LINK HUNTER TAB ---
+        const LinkHunterTab = ({ apiKeys, addToKnowledge, pushScriptUrl }) => {
             const [input, setInput] = useState("");
             const [log, setLog] = useState("");
             const [loading, setLoading] = useState(false);
@@ -517,6 +464,7 @@
                     const text = await generateContentWithRetry(apiKeys, prompt, blob, type, setLog);
                     setResult(text);
                     addToKnowledge(text);
+                    if (pushScriptUrl) await pushToCloud(pushScriptUrl, text, setLog);
                 } catch(e) { setLog(e.message); } finally { setLoading(false); }
             };
 
@@ -533,18 +481,146 @@
             );
         };
 
+        // --- KNOWLEDGE TAB (RESTORED FULL) ---
+        const KnowledgeTab = ({ knowledgeBase, apiKeys, addToKnowledge, sheetUrl, setKnowledgeBase, pushScriptUrl }) => {
+            const [search, setSearch] = useState("");
+            const [selectedItem, setSelectedItem] = useState(null);
+            const [syncing, setSyncing] = useState(false);
+            const [organizing, setOrganizing] = useState(false);
+            const filtered = knowledgeBase.filter(item => item.content.toLowerCase().includes(search.toLowerCase()) || item.date.includes(search));
+
+            const syncFromSheet = async () => {
+                if (!sheetUrl) return alert("Chưa cài CSV Link! Vào Tab Settings.");
+                setSyncing(true);
+                try {
+                    const response = await fetch(sheetUrl);
+                    if (!response.ok) throw new Error("Lỗi tải Sheet.");
+                    const rows = parseCSV(await response.text());
+                    const newItems = [];
+                    for(let i = 1; i < rows.length; i++) { if(rows[i].length >= 2 && rows[i][1].trim()) newItems.push({ date: rows[i][0] || "?", content: rows[i][1] }); }
+                    setKnowledgeBase(newItems); alert(`Đã tải về ${newItems.length} mục!`);
+                } catch (e) { alert("Lỗi: " + e.message); } finally { setSyncing(false); }
+            };
+
+            const handleOrganize = async () => {
+                if (apiKeys.length === 0) return alert("Cần Key!");
+                setOrganizing(true);
+                try {
+                    const allContent = knowledgeBase.map(k => `[${k.date}]: ${k.content}`).join("\n---\n");
+                    const prompt = `Thủ thư chuyên nghiệp. Sắp xếp thành GUIDELINE duy nhất theo Chủ Đề. Loại bỏ ý trùng. Giữ thuật ngữ Anh. Tiếng Việt.\n\n${allContent}`;
+                    const organizedText = await generateContentWithRetry(apiKeys, prompt, null, null, null);
+                    const newItem = `== 📚 BẢN AI TỔNG HỢP (${new Date().toLocaleDateString()}) ==\n\n${organizedText}`;
+                    addToKnowledge(newItem);
+                    if (pushScriptUrl) { await pushToCloud(pushScriptUrl, newItem, null); alert("Đã tổng hợp và ĐẨY LÊN SHEET thành công!"); }
+                } catch (e) { alert("Lỗi: " + e.message); } finally { setOrganizing(false); }
+            };
+
+            return (
+                <div className="p-6 h-full flex flex-col">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3"><h2 className="text-2xl font-bold text-white">Kho Kiến Thức</h2><span className="bg-slate-700 text-xs px-2 py-1 rounded text-slate-300">{knowledgeBase.length} mục</span></div>
+                        <div className="flex gap-2">
+                            <button onClick={syncFromSheet} disabled={syncing} className={`px-4 py-2 rounded-lg text-sm border flex items-center gap-2 transition-all ${syncing ? 'bg-green-700/50' : 'bg-green-600 hover:bg-green-500 border-green-500 text-white'}`}>{syncing ? <i className="fa-solid fa-sync fa-spin"></i> : <i className="fa-solid fa-cloud-arrow-down"></i>} {syncing ? "Đang tải..." : "Kéo từ Cloud"}</button>
+                            <button onClick={handleOrganize} disabled={organizing} className={`px-4 py-2 rounded-lg text-sm border flex items-center gap-2 transition-all ${organizing ? 'bg-slate-600' : 'bg-violet-600 hover:bg-violet-500 border-violet-500 text-white'}`}>{organizing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-brain"></i>} AI Tổng Hợp</button>
+                        </div>
+                    </div>
+                    <div className="relative mb-4"><i className="fa-solid fa-search absolute left-4 top-3.5 text-slate-500"></i><input type="text" placeholder="Tìm kiếm..." className="w-full glass-input pl-10 pr-4 py-3 rounded-xl" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+                    <div className="flex gap-4 flex-1 overflow-hidden">
+                        <div className="w-1/3 glass-panel overflow-y-auto">
+                            {filtered.map((item, idx) => (
+                                <div key={idx} onClick={() => setSelectedItem(item)} className={`p-4 border-b border-slate-700/50 cursor-pointer hover:bg-slate-700/30 ${selectedItem === item ? 'bg-slate-700/50 border-l-4 border-cyan-500' : ''}`}>
+                                    <div className="flex justify-between items-center mb-1"><div className="text-xs text-slate-500">{item.date}</div>{item.content.includes("📚") && <span className="text-[10px] bg-violet-600/30 text-violet-300 px-1 rounded">AI</span>}</div>
+                                    <div className="font-medium text-slate-200 line-clamp-2">{item.content.replace("== 📚 BẢN AI TỔNG HỢP", "📚 TỔNG HỢP").substring(0, 60)}...</div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="w-2/3 glass-panel p-6 overflow-y-auto bg-slate-900/50">{selectedItem ? (<pre className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed">{selectedItem.content}</pre>) : (<div className="text-slate-500 text-center mt-20">Chọn mục để xem</div>)}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- CONSULT TAB (RESTORED FULL) ---
+        const ConsultTab = ({ apiKeys, knowledgeBase }) => {
+            const [pastedImage, setPastedImage] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [advice, setAdvice] = useState("");
+            const [question, setQuestion] = useState("");
+
+            useEffect(() => {
+                const handlePaste = (e) => { const items = e.clipboardData.items; for (let i = 0; i < items.length; i++) { if (items[i].type.indexOf("image") !== -1) { setPastedImage(items[i].getAsFile()); setAdvice(""); break; } } };
+                window.addEventListener("paste", handlePaste); return () => window.removeEventListener("paste", handlePaste);
+            }, []);
+
+            const handleConsult = async () => {
+                if (apiKeys.length === 0) return alert("Cần Key!");
+                setLoading(true); 
+                try {
+                    const context = knowledgeBase.slice(0, 10).map(k => k.content).join("\n").substring(0, 10000); 
+                    const prompt = `Tư vấn viên. Kiến thức: --- ${context} --- \nCâu hỏi: "${question}" \nGiải quyết vấn đề.`;
+                    const text = await generateContentWithRetry(apiKeys, prompt, pastedImage, pastedImage?.type || 'text/plain', null);
+                    setAdvice(text);
+                } catch (err) { setAdvice("Lỗi: " + err.message); } finally { setLoading(false); }
+            };
+
+            return (
+                <div className="p-6 h-full flex flex-col">
+                    <h2 className="text-2xl font-bold mb-4 text-white">Tư Vấn & Fix Lỗi</h2>
+                    <div className="flex gap-6 h-full">
+                        <div className="w-1/2 flex flex-col gap-4">
+                            <div className="glass-panel p-4 flex-1 flex flex-col items-center justify-center border-dashed border-2 border-slate-600 relative overflow-hidden">
+                                {pastedImage ? ( <img src={URL.createObjectURL(pastedImage)} className="max-h-full object-contain z-10" /> ) : ( <div className="text-center text-slate-400"><i className="fa-regular fa-clipboard text-5xl mb-3 opacity-50"></i><p>Ctrl + V để dán ảnh lỗi</p></div> )}
+                            </div>
+                            <textarea className="glass-input w-full h-24 p-3 rounded-xl resize-none" placeholder="Nhập câu hỏi..." value={question} onChange={(e) => setQuestion(e.target.value)}></textarea>
+                            <button onClick={handleConsult} disabled={loading} className="w-full py-3 rounded-xl font-bold text-white bg-orange-600 hover:bg-orange-500 shadow-lg transition-all">{loading ? "Đang xử lý..." : "GIẢI QUYẾT"}</button>
+                        </div>
+                        <div className="w-1/2 glass-panel p-6 overflow-y-auto bg-slate-900/50"><pre className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed">{advice}</pre></div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SETTINGS TAB (RESTORED FULL) ---
+        const SettingsTab = ({ apiKeys, setApiKeys, clearData, sheetUrl, setSheetUrl, pushScriptUrl, setPushScriptUrl }) => {
+            const [newKey, setNewKey] = useState("");
+            return (
+                <div className="p-6">
+                    <h2 className="text-xl font-bold text-white mb-4">Settings</h2>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="glass-panel p-4">
+                            <h3 className="text-sm font-bold text-green-400 mb-2">Cloud READ (CSV)</h3>
+                            <input className="glass-input w-full p-2 rounded text-xs" placeholder="https://.../pub?output=csv" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} />
+                        </div>
+                        <div className="glass-panel p-4">
+                            <h3 className="text-sm font-bold text-violet-400 mb-2">Cloud WRITE (Apps Script)</h3>
+                            <input className="glass-input w-full p-2 rounded text-xs" placeholder="https://script.google.com/.../exec" value={pushScriptUrl} onChange={e => setPushScriptUrl(e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="glass-panel p-4">
+                        <h3 className="text-sm font-bold text-indigo-400 mb-2">API Keys ({apiKeys.length})</h3>
+                        <textarea className="glass-input w-full h-32 p-2 rounded text-xs font-mono" value={apiKeys.join('\n')} onChange={e => setApiKeys(e.target.value.split('\n').filter(k=>k.trim()))} />
+                        <div className="text-xs text-slate-500 mt-2">One key per line. System auto-rotates on 429/503 errors.</div>
+                    </div>
+                    <button onClick={() => {if(confirm("Clear All Data?")) {clearData();}}} className="mt-4 border border-red-500 text-red-500 px-4 py-2 rounded text-xs hover:bg-red-500/10">Factory Reset</button>
+                </div>
+            );
+        };
+
         // --- MAIN APP ---
         const App = () => {
             const [activeTab, setActiveTab] = useState('crm');
             const [apiKeys, setApiKeys] = useState(() => JSON.parse(localStorage.getItem('dp_keys')) || DEFAULT_KEYS);
             const [leads, setLeads] = useState(() => JSON.parse(localStorage.getItem('dp_leads')) || []);
             const [knowledge, setKnowledge] = useState(() => JSON.parse(localStorage.getItem('dp_kb')) || []);
-            const [activeLead, setActiveLead] = useState(null); // Lead đang được chọn để sale
+            const [sheetUrl, setSheetUrl] = useState(localStorage.getItem('dp_sheet_url') || "");
+            const [pushScriptUrl, setPushScriptUrl] = useState(localStorage.getItem('dp_push_url') || "");
+            const [activeLead, setActiveLead] = useState(null);
 
-            // Auto Save
             useEffect(() => localStorage.setItem('dp_keys', JSON.stringify(apiKeys)), [apiKeys]);
             useEffect(() => localStorage.setItem('dp_leads', JSON.stringify(leads)), [leads]);
             useEffect(() => localStorage.setItem('dp_kb', JSON.stringify(knowledge)), [knowledge]);
+            useEffect(() => localStorage.setItem('dp_sheet_url', sheetUrl), [sheetUrl]);
+            useEffect(() => localStorage.setItem('dp_push_url', pushScriptUrl), [pushScriptUrl]);
 
             const addToKnowledge = (txt) => setKnowledge([{date: new Date().toLocaleString(), content: txt}, ...knowledge]);
             
@@ -560,7 +636,6 @@
 
             return (
                 <div className="flex h-screen w-full relative">
-                    {/* Background Elements */}
                     <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none"></div>
                     <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px] pointer-events-none"></div>
 
@@ -570,23 +645,10 @@
                         {activeTab === 'dashboard' && <DashboardTab leads={leads} />}
                         {activeTab === 'crm' && <CRMTab leads={leads} setLeads={setLeads} onSelectLead={handleSelectLead} />}
                         {activeTab === 'sales' && <SalesTab apiKeys={apiKeys} activeLead={activeLead} updateLead={handleUpdateLead} />}
-                        {activeTab === 'link_hunter' && <LinkHunterTab apiKeys={apiKeys} addToKnowledge={addToKnowledge} />}
-                        
-                        {/* Placeholder tabs for existing features to save space in this response, logic remains same as previous versions */}
-                        {activeTab === 'knowledge' && <div className="p-6 text-slate-400">Knowledge Base Feature (Imported from v5.0)</div>}
-                        {activeTab === 'consult' && <div className="p-6 text-slate-400">Technical Consultant Feature (Imported from v5.0)</div>}
-                        
-                        {activeTab === 'settings' && (
-                            <div className="p-6">
-                                <h2 className="text-xl font-bold text-white mb-4">Settings</h2>
-                                <div className="glass-panel p-4">
-                                    <h3 className="text-sm font-bold text-indigo-400 mb-2">API Keys ({apiKeys.length})</h3>
-                                    <textarea className="glass-input w-full h-32 p-2 rounded text-xs font-mono" value={apiKeys.join('\n')} onChange={e => setApiKeys(e.target.value.split('\n').filter(k=>k.trim()))} />
-                                    <div className="text-xs text-slate-500 mt-2">One key per line. System auto-rotates on 429/503 errors.</div>
-                                </div>
-                                <button onClick={() => {if(confirm("Clear All Data?")) {setLeads([]); setKnowledge([]);}}} className="mt-4 border border-red-500 text-red-500 px-4 py-2 rounded text-xs hover:bg-red-500/10">Factory Reset</button>
-                            </div>
-                        )}
+                        {activeTab === 'link_hunter' && <LinkHunterTab apiKeys={apiKeys} addToKnowledge={addToKnowledge} pushScriptUrl={pushScriptUrl} />}
+                        {activeTab === 'knowledge' && <KnowledgeTab knowledgeBase={knowledge} apiKeys={apiKeys} addToKnowledge={addToKnowledge} sheetUrl={sheetUrl} setKnowledgeBase={setKnowledge} pushScriptUrl={pushScriptUrl} />}
+                        {activeTab === 'consult' && <ConsultTab apiKeys={apiKeys} knowledgeBase={knowledge} />}
+                        {activeTab === 'settings' && <SettingsTab apiKeys={apiKeys} setApiKeys={setApiKeys} clearData={() => {setLeads([]); setKnowledge([]);}} sheetUrl={sheetUrl} setSheetUrl={setSheetUrl} pushScriptUrl={pushScriptUrl} setPushScriptUrl={setPushScriptUrl} />}
                     </div>
                 </div>
             );
