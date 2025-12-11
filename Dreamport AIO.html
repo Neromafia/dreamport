@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIO DreamPort | Cloud Native v4.0</title>
+
+    <!-- React & Tailwind -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- THEME CYBERPUNK --- */
+        :root {
+            --bg-dark: #0f172a;
+            --glass: rgba(30, 41, 59, 0.85);
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.5);
+            --text-main: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image:
+                linear-gradient(rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.9)),
+                url("https://www.transparenttextures.com/patterns/cubes.png");
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* UI Components */
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .glass-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+            outline: none;
+        }
+
+        /* Animations */
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top: 3px solid var(--accent);
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // ================= CONFIGURATION =================
+        const DEFAULT_KEYS = [
+            "AIzaSyB014e36AW3uRbTcjminS7otM7R2F98HFs",
+            "AIzaSyDv_I0dQqS0fHWVuUoIX6z0grMhqKZeiqU",
+            "AIzaSyCfVBBpEXDHko9HjofnuCya1lBhQCbQjgs",
+            "AIzaSyAhqjXbwivzkEysOJUrO_oHsdqZkxUTnvQ"
+        ];
+
+        // ================= CORE SERVICES =================
+
+        // 1. CSV PARSER (Cho Google Sheet Read)
+        const parseCSV = (text) => {
+            const rows = [];
+            let currentRow = [];
+            let currentCell = "";
+            let inQuote = false;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (inQuote) {
+                    if (char === '"' && text[i + 1] === '"') { currentCell += '"'; i++; }
+                    else if (char === '"') inQuote = false;
+                    else currentCell += char;
+                } else {
+                    if (char === '"') inQuote = true;
+                    else if (char === ',') { currentRow.push(currentCell.trim()); currentCell = ""; }
+                    else if (char === '\n' || char === '\r') {
+                        if (currentCell || currentRow.length > 0) { currentRow.push(currentCell.trim()); rows.push(currentRow); }
+                        currentRow = []; currentCell = "";
+                        if (char === '\r' && text[i + 1] === '\n') i++;
+                    } else currentCell += char;
+                }
+            }
+            if (currentCell || currentRow.length > 0) { currentRow.push(currentCell.trim()); rows.push(currentRow); }
+            return rows;
+        };
+
+        // 2. CLOUD PUSH SERVICE (Google Apps Script API)
+        const pushToCloud = async (scriptUrl, content, setLog) => {
+            if (!scriptUrl) return false;
+            if(setLog) setLog("☁️ Đang đẩy lên Cloud...");
+
+            try {
+                // Sử dụng mode 'no-cors' để gửi dữ liệu đi mà không cần chờ phản hồi JSON chuẩn
+                // Đây là cách standard để giao tiếp với GAS từ frontend
+                await fetch(scriptUrl, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content: content })
+                });
+
+                // Vì no-cors không trả về status, ta giả định thành công nếu không có lỗi mạng
+                if(setLog) setLog("✅ Đã gửi lên Sheet!");
+                return true;
+            } catch (error) {
+                console.error("Cloud Push Error:", error);
+                if(setLog) setLog("❌ Lỗi đẩy Cloud: " + error.message);
+                return false;
+            }
+        };
+
+        // 3. DOWNLOADER & GEMINI
+        const extractUrlFromInput = (input) => {
+            const srcMatch = input.match(/src=["'](.*?)["']/);
+            if (srcMatch && srcMatch[1]) {
+                const txt = document.createElement("textarea"); txt.innerHTML = srcMatch[1]; return txt.value;
+            }
+            if (input.startsWith("http")) return input.trim();
+            return null;
+        };
+
+        const downloadFileFromUrl = async (url, setLog) => {
+            setLog(`🔗 Đang phân tích link...`);
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    setLog(`⬇️ Tải trực tiếp thành công...`);
+                    const blob = await response.blob();
+                    return { blob, type: blob.type };
+                }
+            } catch (e) { console.log("Direct fetch failed, trying proxy..."); }
+
+            try {
+                setLog(`🌐 Bật Proxy Tunnel...`);
+                const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(url);
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`Proxy lỗi: ${response.status}`);
+                setLog(`⬇️ Đang tải về RAM...`);
+                const blob = await response.blob();
+                let type = blob.type;
+                if (!type) {
+                    if (url.includes('.mp4')) type = 'video/mp4';
+                    else if (url.includes('.png')) type = 'image/png';
+                    else if (url.includes('.jpg')) type = 'image/jpeg';
+                }
+                return { blob, type };
+            } catch (err) {
+                throw new Error("Lỗi tải file (CORS/Chặn IP).");
+            }
+        };
+
+        const blobToBase64 = (blob) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.readAsDataURL(blob);
+            });
+        };
+
+        const generateContentWithRetry = async (keys, prompt, blob, mimeType, setLog) => {
+            let availableKeys = [...keys];
+            for (let i = 0; i < availableKeys.length; i++) {
+                const currentKey = availableKeys[i];
+                try {
+                    if (setLog) setLog(`🤖 Gửi Gemini (Key ${i+1})...`);
+                    const model = "gemini-1.5-flash";
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentKey}`;
+                    let contents = [{ parts: [{ text: prompt }] }];
+                    if (blob) {
+                        const base64Data = await blobToBase64(blob);
+                        contents[0].parts.push({ inlineData: { data: base64Data, mimeType: mimeType } });
+                    }
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents })
+                    });
+                    const data = await response.json();
+                    if (data.error) {
+                        const code = data.error.code;
+                        if (code === 429 || code === 503) {
+                            if (setLog) setLog(`⚠️ Key ${i+1} quá tải. Đổi Key...`);
+                            continue;
+                        }
+                        throw new Error(data.error.message);
+                    }
+                    if (setLog) setLog(`✅ Hoàn tất!`);
+                    return data.candidates[0].content.parts[0].text;
+                } catch (err) {
+                    if (i === availableKeys.length - 1) throw err;
+                }
+            }
+        };
+
+        // ================= COMPONENTS =================
+
+        const Sidebar = ({ activeTab, setActiveTab }) => {
+            const tabs = [
+                { id: 'link_hunter', icon: 'fa-link', label: 'Link Hunter' },
+                { id: 'knowledge', icon: 'fa-book-open', label: 'Kho Kiến thức' },
+                { id: 'consult', icon: 'fa-headset', label: 'Tư vấn (Paste)' },
+                { id: 'settings', icon: 'fa-cog', label: 'Cài đặt (Cloud)' },
+            ];
+
+            return (
+                <div className="w-64 glass-panel h-[95vh] m-4 flex flex-col p-4 relative z-10">
+                    <div className="flex items-center gap-3 mb-8 px-2">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center animate-float">
+                            <i className="fa-solid fa-server text-white"></i>
+                        </div>
+                        <div>
+                            <h1 className="font-bold text-lg tracking-wider text-white">DREAMPORT</h1>
+                            <p className="text-xs text-slate-400">Cloud Native v4.0</p>
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                                    activeTab === tab.id
+                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                                }`}
+                            >
+                                <i className={`fa-solid ${tab.icon} w-6`}></i>
+                                <span className="font-medium">{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- TAB 1: LINK HUNTER ---
+        const LinkHunterTab = ({ apiKeys, addToKnowledge, pushScriptUrl }) => {
+            const [inputRaw, setInputRaw] = useState("");
+            const [loading, setLoading] = useState(false);
+            const [log, setLog] = useState("");
+            const [result, setResult] = useState("");
+
+            const handleAnalyze = async () => {
+                if (!inputRaw.trim()) return alert("Dán Link vào!");
+                if (apiKeys.length === 0) return alert("Chưa có Key!");
+                setLoading(true); setLog("Quét mã..."); setResult("");
+
+                try {
+                    const cleanUrl = extractUrlFromInput(inputRaw);
+                    if (!cleanUrl) throw new Error("Link không hợp lệ.");
+                    setLog(`🎯 Target: ${cleanUrl.substring(0, 40)}...`);
+                    const { blob, type } = await downloadFileFromUrl(cleanUrl, setLog);
+                    setLog(`📦 Đã tải RAM: ${(blob.size/1024/1024).toFixed(2)} MB`);
+
+                    let prompt = "";
+                    if (type.startsWith("image")) prompt = `Ảnh tài liệu nghiệp vụ. Trích xuất Guideline sang TIẾNG VIỆT. Giữ thuật ngữ Anh.`;
+                    else if (type.startsWith("video")) prompt = `Chuyên gia đào tạo. Xem video, tóm tắt Guideline chi tiết sang TIẾNG VIỆT. Giữ thuật ngữ chuyên ngành.`;
+                    else prompt = `Phân tích nội dung file này.`;
+
+                    const text = await generateContentWithRetry(apiKeys, prompt, blob, type, setLog);
+                    setResult(text);
+                    addToKnowledge(text); // Lưu local
+
+                    // AUTO PUSH TO CLOUD
+                    if (pushScriptUrl) {
+                        await pushToCloud(pushScriptUrl, text, setLog);
+                    } else {
+                        setLog("⚠️ Chưa cài URL Script. Chỉ lưu Local.");
+                    }
+
+                } catch (err) { setLog(`❌ Lỗi: ${err.message}`); } finally { setLoading(false); }
+            };
+
+            return (
+                <div className="p-6 h-full flex flex-col">
+                    <h2 className="text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Link Hunter</h2>
+                    <p className="text-slate-400 text-sm mb-6">Dán mã <code>&lt;video&gt;</code> vào. Tool phân tích và <b>TỰ ĐỘNG ĐẨY LÊN SHEET</b>.</p>
+                    <div className="flex gap-4 mb-4">
+                        <input type="text" className="glass-input flex-1 px-4 py-3 rounded-xl font-mono text-sm text-cyan-300" placeholder='Ví dụ: <video src="...">' value={inputRaw} onChange={(e) => setInputRaw(e.target.value)} />
+                        <button onClick={handleAnalyze} disabled={loading} className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all ${loading ? 'bg-slate-600' : 'bg-violet-600 hover:bg-violet-500 pulse-btn'}`}>{loading ? "Đang chạy..." : "PHÂN TÍCH"}</button>
+                    </div>
+                    <div className="bg-slate-900/80 rounded-lg p-3 mb-4 font-mono text-xs h-24 overflow-y-auto border border-slate-700">
+                        {log ? <div className="text-green-400">{log}</div> : <div className="text-slate-600">Waiting...</div>}
+                    </div>
+                    <div className="flex-1 glass-panel p-6 overflow-y-auto border border-violet-500/30">
+                        {result ? (<pre className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed">{result}</pre>) : (<div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-50"><i className="fa-solid fa-microchip text-6xl mb-4"></i></div>)}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- TAB 2: KNOWLEDGE ---
+        const KnowledgeTab = ({ knowledgeBase, apiKeys, addToKnowledge, sheetUrl, setKnowledgeBase, pushScriptUrl }) => {
+            const [search, setSearch] = useState("");
+            const [selectedItem, setSelectedItem] = useState(null);
+            const [syncing, setSyncing] = useState(false);
+            const [organizing, setOrganizing] = useState(false);
+
+            const filtered = knowledgeBase.filter(item => item.content.toLowerCase().includes(search.toLowerCase()) || item.date.includes(search));
+
+            const syncFromSheet = async () => {
+                if (!sheetUrl) return alert("Chưa cài CSV Link!");
+                setSyncing(true);
+                try {
+                    const response = await fetch(sheetUrl);
+                    if (!response.ok) throw new Error("Lỗi tải Sheet.");
+                    const rows = parseCSV(await response.text());
+                    const newItems = [];
+                    for(let i = 1; i < rows.length; i++) {
+                        if(rows[i].length >= 2 && rows[i][1].trim()) newItems.push({ date: rows[i][0] || "?", content: rows[i][1] });
+                    }
+                    setKnowledgeBase(newItems); // Ghi đè để đồng bộ chuẩn xác với Cloud
+                    alert(`Đã tải về ${newItems.length} mục từ Cloud!`);
+                } catch (e) { alert("Lỗi: " + e.message); } finally { setSyncing(false); }
+            };
+
+            const handleOrganize = async () => {
+                if (apiKeys.length === 0) return alert("Cần Key!");
+                setOrganizing(true);
+                try {
+                    const allContent = knowledgeBase.map(k => `[${k.date}]: ${k.content}`).join("\n---\n");
+                    const prompt = `Thủ thư chuyên nghiệp. Sắp xếp thành GUIDELINE duy nhất theo Chủ Đề. Loại bỏ ý trùng. Giữ thuật ngữ Anh. Tiếng Việt.\n\n${allContent}`;
+                    const organizedText = await generateContentWithRetry(apiKeys, prompt, null, null, null);
+
+                    const newItem = `== 📚 BẢN AI TỔNG HỢP (${new Date().toLocaleDateString()}) ==\n\n${organizedText}`;
+                    addToKnowledge(newItem);
+
+                    if (pushScriptUrl) {
+                        await pushToCloud(pushScriptUrl, newItem, null);
+                        alert("Đã tổng hợp và ĐẨY LÊN SHEET thành công!");
+                    }
+                } catch (e) { alert("Lỗi: " + e.message); } finally { setOrganizing(false); }
+            };
+
+            return (
+                <div className="p-6 h-full flex flex-col">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-2xl font-bold text-white">Kho Kiến Thức</h2>
+                            <span className="bg-slate-700 text-xs px-2 py-1 rounded text-slate-300">{knowledgeBase.length} mục</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={syncFromSheet} disabled={syncing} className={`px-4 py-2 rounded-lg text-sm border flex items-center gap-2 transition-all ${syncing ? 'bg-green-700/50' : 'bg-green-600 hover:bg-green-500 border-green-500 text-white'}`}>
+                                {syncing ? <i className="fa-solid fa-sync fa-spin"></i> : <i className="fa-solid fa-cloud-arrow-down"></i>} {syncing ? "Đang tải..." : "Kéo từ Cloud"}
+                            </button>
+                            <button onClick={handleOrganize} disabled={organizing} className={`px-4 py-2 rounded-lg text-sm border flex items-center gap-2 transition-all ${organizing ? 'bg-slate-600' : 'bg-violet-600 hover:bg-violet-500 border-violet-500 text-white'}`}>
+                                {organizing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-brain"></i>} AI Tổng Hợp
+                            </button>
+                        </div>
+                    </div>
+                    <div className="relative mb-4">
+                        <i className="fa-solid fa-search absolute left-4 top-3.5 text-slate-500"></i>
+                        <input type="text" placeholder="Tìm kiếm..." className="w-full glass-input pl-10 pr-4 py-3 rounded-xl" value={search} onChange={(e) => setSearch(e.target.value)} />
+                    </div>
+                    <div className="flex gap-4 flex-1 overflow-hidden">
+                        <div className="w-1/3 glass-panel overflow-y-auto">
+                            {filtered.map((item, idx) => (
+                                <div key={idx} onClick={() => setSelectedItem(item)} className={`p-4 border-b border-slate-700/50 cursor-pointer hover:bg-slate-700/30 ${selectedItem === item ? 'bg-slate-700/50 border-l-4 border-cyan-500' : ''}`}>
+                                    <div className="flex justify-between items-center mb-1"><div className="text-xs text-slate-500">{item.date}</div>{item.content.includes("📚") && <span className="text-[10px] bg-violet-600/30 text-violet-300 px-1 rounded">AI</span>}</div>
+                                    <div className="font-medium text-slate-200 line-clamp-2">{item.content.replace("== 📚 BẢN AI TỔNG HỢP", "📚 TỔNG HỢP").substring(0, 60)}...</div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="w-2/3 glass-panel p-6 overflow-y-auto bg-slate-900/50">
+                            {selectedItem ? (<pre className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed">{selectedItem.content}</pre>) : (<div className="text-slate-500 text-center mt-20">Chọn mục để xem</div>)}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- TAB 3: CONSULT ---
+        const ConsultTab = ({ apiKeys, knowledgeBase }) => {
+            const [pastedImage, setPastedImage] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [advice, setAdvice] = useState("");
+            const [question, setQuestion] = useState("");
+
+            useEffect(() => {
+                const handlePaste = (e) => {
+                    const items = e.clipboardData.items;
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type.indexOf("image") !== -1) { setPastedImage(items[i].getAsFile()); setAdvice(""); break; }
+                    }
+                };
+                window.addEventListener("paste", handlePaste); return () => window.removeEventListener("paste", handlePaste);
+            }, []);
+
+            const handleConsult = async () => {
+                if (apiKeys.length === 0) return alert("Cần Key!");
+                setLoading(true);
+                try {
+                    const context = knowledgeBase.slice(0, 10).map(k => k.content).join("\n").substring(0, 10000);
+                    const prompt = `Tư vấn viên. Kiến thức: --- ${context} --- \nCâu hỏi: "${question}" \nGiải quyết vấn đề.`;
+                    const text = await generateContentWithRetry(apiKeys, prompt, pastedImage, pastedImage?.type || 'text/plain', null);
+                    setAdvice(text);
+                } catch (err) { setAdvice("Lỗi: " + err.message); } finally { setLoading(false); }
+            };
+
+            return (
+                <div className="p-6 h-full flex flex-col">
+                    <h2 className="text-2xl font-bold mb-4 text-white">Tư Vấn Nghiệp Vụ</h2>
+                    <div className="flex gap-6 h-full">
+                        <div className="w-1/2 flex flex-col gap-4">
+                            <div className="glass-panel p-4 flex-1 flex flex-col items-center justify-center border-dashed border-2 border-slate-600 relative overflow-hidden">
+                                {pastedImage ? ( <img src={URL.createObjectURL(pastedImage)} className="max-h-full object-contain z-10" /> ) : ( <div className="text-center text-slate-400"><i className="fa-regular fa-clipboard text-5xl mb-3 opacity-50"></i><p>Ctrl + V để dán ảnh</p></div> )}
+                            </div>
+                            <textarea className="glass-input w-full h-24 p-3 rounded-xl resize-none" placeholder="Nhập câu hỏi..." value={question} onChange={(e) => setQuestion(e.target.value)}></textarea>
+                            <button onClick={handleConsult} disabled={loading} className="w-full py-3 rounded-xl font-bold text-white bg-orange-600 hover:bg-orange-500 shadow-lg transition-all">{loading ? "Đang xử lý..." : "GIẢI QUYẾT"}</button>
+                        </div>
+                        <div className="w-1/2 glass-panel p-6 overflow-y-auto bg-slate-900/50"><pre className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed">{advice}</pre></div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SETTINGS ---
+        const SettingsTab = ({ apiKeys, setApiKeys, clearData, sheetUrl, setSheetUrl, pushScriptUrl, setPushScriptUrl }) => {
+            const [newKey, setNewKey] = useState("");
+            return (
+                <div className="p-6 max-w-2xl mx-auto mt-10 glass-panel overflow-y-auto h-full">
+                    <h2 className="text-2xl font-bold mb-6 text-white">Cài Đặt Cloud Sync</h2>
+
+                    {/* READ SETUP */}
+                    <div className="mb-4 p-4 bg-green-900/20 border border-green-500/30 rounded-xl">
+                        <h3 className="text-green-300 font-bold mb-3"><i className="fa-solid fa-cloud-arrow-down mr-2"></i>Link ĐỌC (CSV Publish)</h3>
+                        <p className="text-xs text-slate-400 mb-2">Để Tool tải dữ liệu về máy.</p>
+                        <input type="text" className="glass-input w-full px-4 py-2 rounded-lg text-green-300 font-mono text-xs" placeholder="https://docs.google.com/.../pub?output=csv" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
+                    </div>
+
+                    {/* WRITE SETUP */}
+                    <div className="mb-8 p-4 bg-violet-900/20 border border-violet-500/30 rounded-xl">
+                        <h3 className="text-violet-300 font-bold mb-3"><i className="fa-solid fa-cloud-arrow-up mr-2"></i>Link GHI (Apps Script URL)</h3>
+                        <p className="text-xs text-slate-400 mb-2">Để Tool tự động đẩy dữ liệu lên Sheet.</p>
+                        <input type="text" className="glass-input w-full px-4 py-2 rounded-lg text-violet-300 font-mono text-xs" placeholder="https://script.google.com/macros/s/.../exec" value={pushScriptUrl} onChange={(e) => setPushScriptUrl(e.target.value)} />
+                    </div>
+
+                    <h3 className="text-white font-bold mb-3">API Key Pool</h3>
+                    <div className="flex gap-2 mb-6">
+                        <input type="text" value={newKey} onChange={(e) => setNewKey(e.target.value)} className="glass-input flex-1 px-4 py-2 rounded-lg" placeholder="Thêm Key..." />
+                        <button onClick={() => { if(newKey) { setApiKeys([...apiKeys, newKey]); setNewKey(""); } }} className="bg-violet-600 px-6 py-2 rounded-lg text-white">Thêm</button>
+                    </div>
+                    <div className="flex flex-col gap-2 max-h-40 overflow-y-auto mb-6">
+                        {apiKeys.map((key, idx) => (
+                            <div key={idx} className="flex justify-between p-3 bg-slate-900/50 rounded border border-slate-700">
+                                <span className="text-slate-300 text-sm">{key.slice(0, 8)}...</span>
+                                <button onClick={() => setApiKeys(apiKeys.filter((_, i) => i !== idx))} className="text-red-400"><i className="fa-solid fa-trash"></i></button>
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={clearData} className="mt-2 border border-red-500 text-red-500 px-4 py-2 rounded-lg w-full hover:bg-red-500/10">Reset Dữ Liệu</button>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('link_hunter');
+            const [apiKeys, setApiKeys] = useState(() => { const s = localStorage.getItem('dreamport_keys'); return s ? JSON.parse(s) : DEFAULT_KEYS; });
+            const [knowledgeBase, setKnowledgeBase] = useState(JSON.parse(localStorage.getItem('dreamport_kb') || "[]"));
+            const [sheetUrl, setSheetUrl] = useState(localStorage.getItem('dreamport_sheet_url') || "");
+            const [pushScriptUrl, setPushScriptUrl] = useState(localStorage.getItem('dreamport_push_url') || "");
+
+            useEffect(() => localStorage.setItem('dreamport_keys', JSON.stringify(apiKeys)), [apiKeys]);
+            useEffect(() => localStorage.setItem('dreamport_kb', JSON.stringify(knowledgeBase)), [knowledgeBase]);
+            useEffect(() => localStorage.setItem('dreamport_sheet_url', sheetUrl), [sheetUrl]);
+            useEffect(() => localStorage.setItem('dreamport_push_url', pushScriptUrl), [pushScriptUrl]);
+
+            const addToKnowledge = (content) => { setKnowledgeBase(prev => [{ date: new Date().toLocaleString('vi-VN'), content }, ...prev]); };
+
+            return (
+                <div className="flex h-screen w-full relative">
+                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-900/20 rounded-full blur-[120px] pointer-events-none"></div>
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-900/20 rounded-full blur-[120px] pointer-events-none"></div>
+                    <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <div className="flex-1 m-4 ml-0 glass-panel overflow-hidden relative z-10">
+                        {activeTab === 'link_hunter' && <LinkHunterTab apiKeys={apiKeys} addToKnowledge={addToKnowledge} pushScriptUrl={pushScriptUrl} />}
+                        {activeTab === 'knowledge' && <KnowledgeTab knowledgeBase={knowledgeBase} apiKeys={apiKeys} addToKnowledge={addToKnowledge} sheetUrl={sheetUrl} setKnowledgeBase={setKnowledgeBase} pushScriptUrl={pushScriptUrl} />}
+                        {activeTab === 'consult' && <ConsultTab apiKeys={apiKeys} knowledgeBase={knowledgeBase} />}
+                        {activeTab === 'settings' && <SettingsTab apiKeys={apiKeys} setApiKeys={setApiKeys} clearData={() => { if(confirm("Reset?")) { setKnowledgeBase([]); setApiKeys(DEFAULT_KEYS); }}} sheetUrl={sheetUrl} setSheetUrl={setSheetUrl} pushScriptUrl={pushScriptUrl} setPushScriptUrl={setPushScriptUrl} />}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
